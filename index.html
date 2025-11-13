@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>La Gran Manzana - Medidores</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Pequeñas mejoras visuales */
+    .truncate-2 { 
+      display: -webkit-box; 
+      -webkit-line-clamp: 2; 
+      -webkit-box-orient: vertical; 
+      overflow: hidden;
+    }
+    .card-shadow { box-shadow: 0 6px 18px rgba(17,24,39,0.06); }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+  <div id="app" class="max-w-6xl mx-auto p-4"></div>
+
+  <script>
+  /* -----------------------------
+     DATA: locales predeterminados
+     ----------------------------- */
+  const LOCALES_DATA = [
+    {numero: "1-2-3-4-5", inquilino: "Ancla Izquierda", grupo:true},
+    {numero: 6, inquilino: "Elizabeth Godoy"},
+    {numero: 7, inquilino: "Elizabeth Godoy"},
+    {numero: 8, inquilino: "Elizabeth Godoy"},
+    {numero: 9, inquilino: "Elizabeth Godoy"},
+    {numero: 10, inquilino: "Ama Importadora"},
+    {numero: 11, inquilino: "Temperteck"},
+    {numero: "12-13", inquilino: "Elizabeth Godoy", grupo:true},
+    {numero: 14, inquilino: "Cecilia Moreno"},
+    {numero: 15, inquilino: "Pacific Cargo"},
+    {numero: 16, inquilino: "Dassconfort"},
+    {numero: 17, inquilino: "Dassconfort"},
+    {numero: 18, inquilino: "Jessica Aragon"},
+    {numero: 19, inquilino: "Roger Echanique"},
+    {numero: 20, inquilino: "Premiuntech"},
+    {numero: 21, inquilino: "Premiuntech"},
+    {numero: 22, inquilino: "Premiuntech"},
+    {numero: 23, inquilino: "Aviauto"},
+    {numero: 24, inquilino: "Frankimport"},
+    {numero: 25, inquilino: "Equindeca"},
+    {numero: 26, inquilino: "MedicHome"},
+    {numero: 27, inquilino: "MedicHome"},
+    {numero: 28, inquilino: "Aviauto"},
+    {numero: 29, inquilino: "Aviauto"},
+    {numero: 30, inquilino: "Mauricio Negrete"},
+    {numero: 31, inquilino: "Dulcalab"},
+    {numero: "32-33-34", inquilino: "Equindeca", grupo:true},
+    {numero: 35, inquilino: "She"},
+    {numero: 36, inquilino: "AutoCentrum"},
+    {numero: 37, inquilino: "Ignacio Baque"},
+    {numero: 38, inquilino: "Surtibell"},
+    {numero: 39, inquilino: "Cendecom"},
+    {numero: 40, inquilino: "Camembert"},
+    {numero: 41, inquilino: "Bitelnet"},
+    {numero: 42, inquilino: "Kaseruc"},
+    {numero: 43, inquilino: "Gilbert Global"},
+    {numero: 44, inquilino: "Gilbert Global"},
+    {numero: 45, inquilino: "Patsy Perez"},
+    {numero: 46, inquilino: "RecorDental"},
+    {numero: 47, inquilino: "Elektorres"},
+    {numero: 48, inquilino: "Innovamedikal"},
+    {numero: 49, inquilino: "Innovamedikal"},
+    {numero: "50-51-52", inquilino: "Jorge Vera", grupo:true},
+    {numero: 53, inquilino: "Patricia Celleri"},
+    {numero: 54, inquilino: "Imporfrio"},
+    {numero: 55, inquilino: "Proteinas & Company"},
+    {numero: 56, inquilino: "Corpkadilac"},
+    {numero: 57, inquilino: "Corpkadilac"},
+    {numero: "58-59", inquilino: "Kissu", grupo:true},
+    {numero: 60, inquilino: "Bticino"},
+    {numero: 61, inquilino: "Rigotech"},
+    {numero: 62, inquilino: "Samsung"},
+    {numero: 63, inquilino: "VentaMark"},
+    {numero: 64, inquilino: "VentaMark"},
+    {numero: 65, inquilino: "Qaltrom"},
+    {numero: 66, inquilino: "Qaltrom"},
+    {numero: 67, inquilino: "James Brown"},
+    {numero: 68, inquilino: "James Brown"},
+    {numero: 69, inquilino: "Coop. 27 de Noviembre"},
+    {numero: 70, inquilino: "Beatriz Roman"},
+    {numero: 71, inquilino: "Kaseruc"},
+    {numero: 72, inquilino: "RecorDental"},
+    {numero: 73, inquilino: "Corpkadilac"},
+    {numero: "74-75", inquilino: "Innovamedikal", grupo:true},
+    {numero: 76, inquilino: "Yessenia Fernandez"},
+    {numero: "77-78", inquilino: "Corpkadilac", grupo:true},
+    {numero: 79, inquilino: "Corpkadilac"},
+    {numero: "80-81-82-83-84", inquilino: "Consorcio Gane", grupo:true},
+    {numero: "85-86-87", inquilino: "Elvis Crespo", grupo:true},
+    {numero: 88, inquilino: "Enterprise Motors"},
+    {numero: 89, inquilino: "Enterprise Motors"},
+    {numero: 90, inquilino: "Enterprise Motors"},
+    {numero: 91, inquilino: "Karina Nazareno"},
+    {numero: 92, inquilino: "Rapsecon"},
+    {numero: 93, inquilino: "Rapsecon"},
+    {numero: 94, inquilino: "FootCell"},
+    {numero: "95-96-97", inquilino: "Sesinaqua", grupo:true},
+    {numero: 98, inquilino: "Innovamedikal"},
+    {numero: 99, inquilino: "ServiCar"},
+    {numero: "100-101", inquilino: "Kissu", grupo:true},
+    {numero: 102, inquilino: "Vacío"},
+    {numero: 103, inquilino: "TKVElectros"},
+    {numero: 104, inquilino: "Schullo"},
+    {numero: 105, inquilino: "Schullo"},
+    {numero: 106, inquilino: "Barbara Adum"},
+    {numero: 107, inquilino: "Envios Rapidos"},
+    {numero: 108, inquilino: "Kaseruc"},
+    {numero: 109, inquilino: "Camembert"},
+    {numero: 110, inquilino: "Camembert"},
+    {numero: 111, inquilino: "Andrea Naula"},
+    {numero: 112, inquilino: "Norvida"},
+    {numero: 113, inquilino: "Norvida"},
+    {numero: 114, inquilino: "Norvida"},
+    {numero: "115-116", inquilino: "Norvida", grupo:true},
+    {numero: 117, inquilino: "Norvida"},
+    {numero: 118, inquilino: "Norvida"},
+    {numero: 119, inquilino: "Norvida"},
+    {numero: 120, inquilino: "Norvida"},
+    {numero: 121, inquilino: "Norvida"},
+    {numero: 122, inquilino: "Norvida"},
+    {numero: 123, inquilino: "Camembert"},
+    {numero: 124, inquilino: "Ricardo Cedeño"},
+    {numero: 125, inquilino: "Jami"},
+    {numero: 126, inquilino: "Sinpetsa"},
+    {numero: 127, inquilino: "Vacío"},
+    {numero: 128, inquilino: "Vacío"},
+    {numero: 129, inquilino: "Rayos X"},
+    {numero: 130, inquilino: "Distrimass"},
+    {numero: 131, inquilino: "Pharmatotal"},
+    {numero: 132, inquilino: "Pharmatotal"},
+    {numero: 133, inquilino: "K'archer"},
+    {numero: "R-CG", inquilino: "Riego Consorcio Gane"},
+    {numero: "R-BM", inquilino: "Riego Banco de Miro"},
+    {numero: "B-PUB", inquilino: "Baños Publicos"},
+    {numero: "B-EMP", inquilino: "Baños de empleados"},
+    {numero: "B-GAN", inquilino: "Baños Gane"},
+    {numero: "ML-L6", inquilino: "Medidor Limpieza (L6)"},
+    {numero: "ML-L15", inquilino: "Medidor Limpieza (L15)"},
+    {numero: "ML-L24", inquilino: "Medidor Limpieza (L24)"},
+    {numero: "ML-L41", inquilino: "Medidor Limpieza (L41)"},
+    {numero: "ML-L60", inquilino: "Medidor Limpieza (L60)"},
+    {numero: "ML-L68", inquilino: "Medidor Limpieza (L68)"},
+    {numero: "ML-L79", inquilino: "Medidor Limpieza (L79)"},
+    {numero: "ML-L87", inquilino: "Medidor Limpieza (L87)"},
+    {numero: "ML-L102", inquilino: "Medidor Limpieza (L102)"},
+    {numero: "ML-L108", inquilino: "Medidor Limpieza (L108)"},
+    {numero: "ML-L123", inquilino: "Medidor Limpieza (L123)"},
+    {numero: "M-OFI", inquilino: "Contenedor 1 atrás Oficina"},
+    {numero: "M-L49", inquilino: "Contenedor 2 atrás L49"},
+    {numero: "M-BOM", inquilino: "Cuarto de Bombas"},
+    {numero: "M-GEN", inquilino: "Medidor General"},
+    {numero: "MAD-001", inquilino: "Medidor Adicional 001"},
+    {numero: "MAD-002", inquilino: "Medidor Adicional 002"},
+    {numero: "MAD-003", inquilino: "Medidor Adicional 003"}
+  ];
+
+  /* -----------------------------
+     UTILS: storage wrappers y helpers
+     ----------------------------- */
+  const storage = {
+    get(key){ return Promise.resolve(localStorage.getItem(key)); },
+    set(key, value){ localStorage.setItem(key, value); return Promise.resolve(); },
+    remove(key){ localStorage.removeItem(key); return Promise.resolve(); }
+  };
+
+  const todayKey = () => new Date().toISOString().split('T')[0];
+
+  const formatDate = (iso) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString('es-EC') + ' ' + d.toLocaleTimeString('es-EC');
+  };
+
+  /* -----------------------------
+     APP STATE
+     ----------------------------- */
+  let state = {
+    user: null, // {username, nombre, rol}
+    locales: [], // con ultimaLectura, fechaUltimaLectura
+    registros: [], // registros para el día cargados
+    view: 'login', // login | registro | admin
+    search: '',
+    selectedLocal: '',
+    lectura: '',
+    fotoDataUrl: null,
+    error: '',
+    success: '',
+    loading: false,
+    isOnline: navigator.onLine,
+    // CONFIG GOOGLE SHEETS: pega aquí tu URL de WebApp y TOKEN si lo usas
+    googleSheetsEndpoint: '', // ejemplo: 'https://script.google.com/macros/s/AKfy.../exec'
+    googleSheetsToken: '' // comparte este token con el Apps Script para validarlo (opcional pero recomendado)
+  };
+
+  /* -----------------------------
+     RENDER
+     ----------------------------- */
+  const app = document.getElementById('app');
+
+  function render(){
+    app.innerHTML = '';
+    if(!state.user) renderLogin();
+    else if(state.user.rol === 'admin') renderAdmin();
+    else renderRegistro();
+  }
+
+  /* -----------------------------
+     LOGIN VIEW
+     ----------------------------- */
+  function renderLogin(){
+    const html = document.createElement('div');
+    html.className = 'min-h-screen flex items-center justify-center';
+    html.innerHTML = `
+      <div class="w-full max-w-md bg-white rounded-lg p-6 card-shadow">
+        <h2 class="text-2xl font-bold mb-2">La Gran Manzana</h2>
+        <p class="text-sm text-gray-600 mb-4">Registro de Lecturas - Guardias</p>
+
+        <div id="onlineBadge" class="mb-4 text-sm"></div>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium">Usuario</label>
+            <input id="loginUser" class="w-full px-3 py-2 border rounded" placeholder="guardia / admin" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Contraseña</label>
+            <input id="loginPass" type="password" class="w-full px-3 py-2 border rounded" placeholder="1234 / admin123" />
+          </div>
+          <div id="guardNameField" style="display:none;">
+            <label class="block text-sm font-medium">Nombre completo (Guardia)</label>
+            <input id="guardFullName" class="w-full px-3 py-2 border rounded" placeholder="Ej: Juan Pérez" />
+          </div>
+
+          <div id="loginError" class="text-sm text-red-600"></div>
+
+          <div class="flex gap-2">
+            <button id="btnLogin" class="flex-1 bg-blue-600 text-white py-2 rounded">Iniciar Sesión</button>
+            <button id="btnDemo" class="flex-1 bg-gray-100 py-2 rounded">Demo</button>
+          </div>
+        </div>
+
+        <div class="mt-4 text-xs text-gray-500">
+          <p><strong>Usuarios:</strong> guardia (1234) - admin (admin123)</p>
+        </div>
+      </div>
+    `;
+    app.appendChild(html);
+
+    document.getElementById('loginUser').addEventListener('input', (e)=>{
+      const v = e.target.value;
+      document.getElementById('guardNameField').style.display = v === 'guardia' ? 'block' : 'none';
+    });
+
+    document.getElementById('btnLogin').addEventListener('click', handleLogin);
+    document.getElementById('btnDemo').addEventListener('click', ()=>{
+      // Demo rápido: cargar datos y abrir registro (guardia)
+      state.user = {username:'guardia', nombre:'Demo Guardia', rol:'guardia'};
+      loadInitialData().then(()=>{ state.view='registro'; render(); });
+    });
+
+    document.getElementById('onlineBadge').innerHTML = state.isOnline ? '<span class="text-green-600">Conectado</span>' : '<span class="text-orange-600">Sin conexión (modo offline)</span>';
+  }
+
+  function handleLogin(){
+    const u = document.getElementById('loginUser').value.trim();
+    const p = document.getElementById('loginPass').value.trim();
+    const nombreGuard = document.getElementById('guardFullName').value.trim();
+
+    const usuarios = {
+      'guardia': {password:'1234', rol:'guardia'},
+      'admin': {password:'admin123', rol:'admin', nombre:'Administrador'}
+    };
+
+    if(!usuarios[u] || usuarios[u].password !== p){
+      document.getElementById('loginError').innerText = 'Usuario o contraseña incorrectos';
+      return;
+    }
+    if(u === 'guardia' && !nombreGuard){
+      document.getElementById('loginError').innerText = 'Ingrese su nombre completo';
+      return;
+    }
+
+    state.user = { username: u, nombre: u==='guardia' ? nombreGuard : usuarios[u].nombre, rol: usuarios[u].rol };
+    loadInitialData().then(()=>{ state.view = state.user.rol==='admin' ? 'admin' : 'registro'; render(); });
+  }
+
+  /* -----------------------------
+     CARGA INICIAL: locales y registros de hoy
+     ----------------------------- */
+  async function loadInitialData(){
+    // locales (conlecturas previas)
+    let initialLocales = LOCALES_DATA.map(l=>({...l, ultimaLectura:0, fechaUltimaLectura: null}));
+    try{
+      const saved = await storage.get('locales-gran-manzana');
+      if(saved){
+        const parsed = JSON.parse(saved);
+        parsed.forEach(s=>{
+          const loc = initialLocales.find(x => String(x.numero) === String(s.numero));
+          if(loc && s.ultimaLectura) { loc.ultimaLectura = s.ultimaLectura; loc.fechaUltimaLectura = s.fechaUltimaLectura; }
+        });
+      }
+    }catch(e){ console.log('no locales saved'); }
+    state.locales = initialLocales;
+
+    // registros del día
+    const key = 'registros-' + todayKey();
+    try{
+      const r = await storage.get(key);
+      state.registros = r ? JSON.parse(r) : [];
+    }catch(e){ state.registros = []; }
+  }
+
+  /* -----------------------------
+     VISTA REGISTRO (guardias)
+     ----------------------------- */
+  function renderRegistro(){
+    const registrosHoy = state.registros.filter(r => r.fecha.split('T')[0] === todayKey());
+    const progreso = {completados: registrosHoy.length, total: state.locales.length, porcentaje: Math.round((registrosHoy.length/state.locales.length)*100)};
+
+    const cont = document.createElement('div');
+    cont.className = 'max-w-2xl mx-auto space-y-6';
+
+    cont.innerHTML = `
+      <div class="bg-white p-5 rounded-lg card-shadow">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h1 class="text-xl font-bold">Registro de Medidores</h1>
+            <p class="text-sm text-gray-600">Guardia: ${escapeHtml(state.user.nombre)}</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="text-sm text-gray-600">Progreso: <strong>${progreso.completados}/${progreso.total}</strong></div>
+            <button id="btnLogout" class="px-3 py-2 bg-red-500 text-white rounded">Salir</button>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium">Buscar local o inquilino</label>
+          <input id="searchInput" class="w-full px-3 py-2 border rounded" placeholder="Ej: 25, Equindeca" />
+        </div>
+
+        <div class="grid grid-cols-1 gap-3">
+          <div>
+            <label class="block text-sm font-medium">Seleccionar Local *</label>
+            <select id="selectLocal" class="w-full px-3 py-2 border rounded"></select>
+          </div>
+
+          <div class="bg-yellow-50 border border-yellow-200 p-3 rounded" id="localInfo" style="display:none;"></div>
+
+          <div>
+            <label class="block text-sm font-medium">Lectura actual (m³) *</label>
+            <input id="lecturaInput" type="number" step="0.01" class="w-full px-3 py-2 border rounded" placeholder="Ej: 1234.56" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium">Foto (opcional)</label>
+            <input id="fotoInput" type="file" accept="image/*" capture="environment" class="w-full" />
+            <div id="previewFoto" class="mt-3"></div>
+          </div>
+
+          <div class="flex gap-2">
+            <button id="btnRegistrar" class="flex-1 bg-blue-600 text-white py-2 rounded">Registrar Lectura</button>
+            <button id="btnVerMis" class="flex-1 bg-gray-100 py-2 rounded">Mis Registros</button>
+          </div>
+
+          <div id="regMsg" class="text-sm mt-2"></div>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-lg card-shadow">
+        <h2 class="font-semibold mb-3">Mis Registros de Hoy</h2>
+        <div id="misRegistrosList">
+          <!-- registros del guardia se listan aqui -->
+        </div>
+      </div>
+    `;
+
+    app.innerHTML = '';
+    app.appendChild(cont);
+
+    // llenar select
+    fillSelectLocales();
+
+    // eventos
+    document.getElementById('searchInput').addEventListener('input', (e)=>{
+      const v = e.target.value.toLowerCase();
+      state.search = v;
+      fillSelectLocales();
+    });
+
+    document.getElementById('selectLocal').addEventListener('change', (e)=>{
+      state.selectedLocal = e.target.value;
+      showLocalInfo();
+    });
+
+    document.getElementById('fotoInput').addEventListener('change', handleFotoInput);
+    document.getElementById('btnRegistrar').addEventListener('click', handleRegistrar);
+    document.getElementById('btnLogout').addEventListener('click', ()=>{ state.user=null; state.view='login'; render(); });
+    document.getElementById('btnVerMis').addEventListener('click', renderMyRecords);
+
+    updateMisRegistros();
+  }
+
+  function fillSelectLocales(){
+    const sel = document.getElementById('selectLocal');
+    sel.innerHTML = '<option value="">-- Seleccione un local --</option>';
+    const filtered = state.locales.filter(l=>{
+      const s = state.search || '';
+      return String(l.numero).toLowerCase().includes(s) || l.inquilino.toLowerCase().includes(s);
+    });
+    filtered.forEach(l=>{
+      const hoy = todayKey();
+      const ya = state.registros.find(r => String(r.local) === String(l.numero) && r.fecha.split('T')[0] === hoy);
+      const disabled = ya ? 'disabled' : '';
+      const label = l.grupo ? `${l.numero} (compartido)` : l.numero;
+      const extra = l.ultimaLectura ? ` - Últ: ${l.ultimaLectura}` : '';
+      const opt = document.createElement('option');
+      opt.value = l.numero;
+      opt.disabled = ya;
+      opt.textContent = `${label} - ${l.inquilino}${ya ? ' ✓' : ''}${extra}`;
+      sel.appendChild(opt);
+    });
+  }
+
+  function showLocalInfo(){
+    const box = document.getElementById('localInfo');
+    if(!state.selectedLocal){ box.style.display='none'; return; }
+    const loc = state.locales.find(l=>String(l.numero) === String(state.selectedLocal));
+    box.style.display = 'block';
+    box.innerHTML = `<strong>Local ${escapeHtml(loc.numero)} - ${escapeHtml(loc.inquilino)}</strong><br/>Última lectura: ${loc.ultimaLectura || 0} m³ ${loc.fechaUltimaLectura ? '<br/><span class="text-xs text-gray-500">Fecha: '+ new Date(loc.fechaUltimaLectura).toLocaleString() +'</span>' : ''}`;
+  }
+
+  function handleFotoInput(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    if(file.size > 5_000_000){ alert('La foto supera 5MB'); return; }
+    const reader = new FileReader();
+    reader.onload = ()=>{ state.fotoDataUrl = reader.result; document.getElementById('previewFoto').innerHTML = `<img src="${state.fotoDataUrl}" class="w-48 rounded" />`; };
+    reader.readAsDataURL(file);
+  }
+
+  function updateMisRegistros(){
+    const container = document.getElementById('misRegistrosList');
+    if(!container) return;
+    const myRegs = state.registros.filter(r=>r.username === state.user.username && r.fecha.split('T')[0] === todayKey());
+    if(myRegs.length === 0){ container.innerHTML = '<p class="text-sm text-gray-500">No has registrado aún.</p>'; return; }
+    container.innerHTML = '';
+    myRegs.forEach(r=>{
+      const div = document.createElement('div');
+      div.className = 'flex items-center justify-between p-3 bg-gray-50 rounded mb-2';
+      div.innerHTML = `<div>
+          <div class="font-medium">${escapeHtml(r.local)} - ${escapeHtml(r.inquilino)}</div>
+          <div class="text-sm text-gray-600">${r.lectura} m³ · ${new Date(r.fecha).toLocaleTimeString()}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          ${r.foto ? `<button class="btnViewFoto px-2 py-1 text-sm border rounded" data-url="${r.foto}">Ver</button>` : ''}
+          <span class="text-green-600">✓</span>
+        </div>`;
+      container.appendChild(div);
+    });
+    // attach view foto handlers
+    document.querySelectorAll('.btnViewFoto').forEach(btn=>{
+      btn.addEventListener('click', ()=> window.open(btn.dataset.url, '_blank'));
+    });
+  }
+
+  function validarLectura(selected, lectura){
+    if(!selected) return 'Debe seleccionar un local';
+    if(!lectura || isNaN(Number(lectura))) return 'Ingrese una lectura válida';
+    const loc = state.locales.find(l=>String(l.numero) === String(selected));
+    const lecturaNum = parseFloat(lectura);
+    if(loc.ultimaLectura && lecturaNum < loc.ultimaLectura) return `La lectura no puede ser menor a la anterior (${loc.ultimaLectura})`;
+    if(loc.ultimaLectura && lecturaNum > loc.ultimaLectura + 1000) return `Lectura muy alta comparada con anterior (${loc.ultimaLectura})`;
+    // verificar si ya fue registrada hoy
+    const hoy = todayKey();
+    const ya = state.registros.find(r => String(r.local) === String(selected) && r.fecha.split('T')[0] === hoy);
+    if(ya) return 'Este local ya fue registrado hoy';
+    return null;
+  }
+
+  async function handleRegistrar(){
+    const sel = document.getElementById('selectLocal').value;
+    const lect = document.getElementById('lecturaInput').value.trim();
+    const err = validarLectura(sel, lect);
+    const msgBox = document.getElementById('regMsg');
+    msgBox.innerText = '';
+    if(err){ msgBox.innerText = err; msgBox.className = 'text-sm text-red-600'; return; }
+
+    // crear registro
+    const now = new Date().toISOString();
+    const locData = state.locales.find(l => String(l.numero) === String(sel));
+    const registro = {
+      id: Date.now(),
+      local: sel,
+      inquilino: locData.inquilino,
+      lectura: parseFloat(lect),
+      foto: state.fotoDataUrl || null,
+      fecha: now,
+      guardia: state.user.nombre,
+      username: state.user.username
+    };
+
+    // guardar en state + localStorage
+    state.registros.push(registro);
+    await storage.set('registros-' + todayKey(), JSON.stringify(state.registros));
+
+    // actualizar locales con la nueva lectura
+    state.locales = state.locales.map(l => String(l.numero) === String(sel) ? {...l, ultimaLectura: registro.lectura, fechaUltimaLectura: now} : l);
+    await storage.set('locales-gran-manzana', JSON.stringify(state.locales));
+
+    // limpiar inputs
+    document.getElementById('selectLocal').value = '';
+    document.getElementById('lecturaInput').value = '';
+    document.getElementById('fotoInput').value = '';
+    document.getElementById('previewFoto').innerHTML = '';
+    state.fotoDataUrl = null;
+    state.selectedLocal = '';
+    state.search = '';
+
+    msgBox.innerText = `Local ${registro.local} - ${registro.inquilino} registrado correctamente`;
+    msgBox.className = 'text-sm text-green-600';
+    fillSelectLocales();
+    updateMisRegistros();
+
+    // si hay endpoint de Google Sheets y estamos online, intentar enviar
+    if(state.googleSheetsEndpoint && state.isOnline){
+      try{ await sendToGoogleSheets([registro]); }catch(e){ console.warn('No se pudo enviar a Google Sheets', e); }
+    }
+  }
+
+  function renderMyRecords(){
+    const myRegs = state.registros.filter(r => r.username === state.user.username && r.fecha.split('T')[0] === todayKey());
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/40 flex items-center justify-center p-4';
+    modal.innerHTML = `<div class="bg-white p-4 rounded-lg w-full max-w-2xl">
+      <h3 class="font-semibold mb-3">Mis registros</h3>
+      <div class="space-y-2" id="modalList"></div>
+      <div class="mt-4 text-right"><button id="closeModal" class="px-3 py-2 bg-gray-200 rounded">Cerrar</button></div>
+    </div>`;
+    document.body.appendChild(modal);
+    const list = modal.querySelector('#modalList');
+    if(myRegs.length===0) list.innerHTML = '<p class="text-sm text-gray-500">No hay registros</p>';
+    myRegs.forEach(r=>{
+      const d = document.createElement('div');
+      d.className = 'p-2 border rounded';
+      d.innerHTML = `<div class="font-medium">${r.local} - ${r.inquilino}</div>
+        <div class="text-sm text-gray-600">${r.lectura} m³ · ${formatDate(r.fecha)}</div>`;
+      list.appendChild(d);
+    });
+    modal.querySelector('#closeModal').addEventListener('click', ()=> modal.remove());
+  }
+
+  /* -----------------------------
+     ADMIN VIEW
+     ----------------------------- */
+  function renderAdmin(){
+    const registrosHoy = state.registros.filter(r=> r.fecha.split('T')[0] === todayKey());
+    const progreso = {completados: registrosHoy.length, total: state.locales.length, porcentaje: Math.round((registrosHoy.length/state.locales.length)*100)};
+    const cont = document.createElement('div');
+    cont.className = 'max-w-7xl mx-auto space-y-6';
+    cont.innerHTML = `
+      <div class="bg-white p-6 rounded card-shadow">
+        <div class="flex justify-between items-start">
+          <div>
+            <h1 class="text-2xl font-bold">Panel Admin - La Gran Manzana</h1>
+            <p class="text-sm text-gray-600">Usuario: ${escapeHtml(state.user.nombre)}</p>
+          </div>
+          <div class="flex gap-2">
+            <button id="btnExport" class="px-3 py-2 bg-green-600 text-white rounded">Exportar Excel (CSV)</button>
+            <button id="btnSync" class="px-3 py-2 bg-indigo-600 text-white rounded">Sincronizar con Google Sheets</button>
+            <button id="btnLogoutAdmin" class="px-3 py-2 bg-red-500 text-white rounded">Salir</button>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <div class="mb-2 text-sm text-gray-600">Progreso hoy: ${progreso.completados} / ${progreso.total} · ${progreso.porcentaje}%</div>
+          <div class="w-full bg-gray-200 h-3 rounded">
+            <div style="width:${progreso.porcentaje}%" class="h-3 rounded bg-blue-600"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded card-shadow">
+        <h2 class="font-semibold mb-3">Registros de Hoy (${registrosHoy.length})</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50"><tr>
+              <th class="p-2 text-left">Local</th>
+              <th class="p-2 text-left">Inquilino</th>
+              <th class="p-2 text-left">Lectura</th>
+              <th class="p-2 text-left">Fecha</th>
+              <th class="p-2 text-left">Guardia</th>
+              <th class="p-2 text-left">Foto</th>
+            </tr></thead>
+            <tbody id="adminTableBody" class="divide-y"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    app.innerHTML = '';
+    app.appendChild(cont);
+
+    // llenar tabla
+    const tbody = document.getElementById('adminTableBody');
+    tbody.innerHTML = '';
+    registrosHoy.sort((a,b)=> compareLocal(a.local,b.local)).forEach(r=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="p-2">${escapeHtml(r.local)}</td>
+        <td class="p-2">${escapeHtml(r.inquilino)}</td>
+        <td class="p-2">${r.lectura} m³</td>
+        <td class="p-2">${formatDate(r.fecha)}</td>
+        <td class="p-2">${escapeHtml(r.guardia)}</td>
+        <td class="p-2">${r.foto ? `<button class="viewFotoBtn px-2 py-1 border rounded" data-url="${r.foto}">Ver</button>` : ''}</td>`;
+      tbody.appendChild(tr);
+    });
+    document.querySelectorAll('.viewFotoBtn').forEach(b=> b.addEventListener('click', ()=> window.open(b.dataset.url,'_blank')));
+
+    // eventos botones
+    document.getElementById('btnExport').addEventListener('click', ()=> exportCsv(registrosHoy));
+    document.getElementById('btnSync').addEventListener('click', async ()=>{
+      if(!state.googleSheetsEndpoint){ alert('Primero configure la URL de Google Sheets en la constante googleSheetsEndpoint en el código'); return; }
+      try{
+        await sendToGoogleSheets(registrosHoy);
+        alert('Sincronización iniciada (revisa la hoja).');
+      }catch(e){ alert('Error al sincronizar: ' + e.message); }
+    });
+    document.getElementById('btnLogoutAdmin').addEventListener('click', ()=>{ state.user=null; state.view='login'; render(); });
+  }
+
+  /* -----------------------------
+     EXPORT CSV (para admin)
+     ----------------------------- */
+  function exportCsv(registrosList){
+    if(!registrosList || registrosList.length===0){ alert('No hay registros para exportar'); return; }
+    let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m3);Guardia;TieneFoto\n';
+    registrosList.forEach(r=>{
+      const d = new Date(r.fecha);
+      const fecha = d.toLocaleDateString('es-EC');
+      const hora = d.toLocaleTimeString('es-EC');
+      const tieneFoto = r.foto ? 'Sí' : 'No';
+      const safe = txt => String(txt).replace(/;/g,',');
+      csv += `${fecha};${hora};${safe(r.local)};${safe(r.inquilino)};${r.lectura};${safe(r.guardia)};${tieneFoto}\n`;
+    });
+    const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lecturas-gran-manzana-${todayKey()}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  /* -----------------------------
+     SYNC to Google Sheets via WebApp (Apps Script)
+     ----------------------------- */
+  async function sendToGoogleSheets(regsArray){
+    if(!Array.isArray(regsArray) || regsArray.length===0) return;
+    const payload = { records: regsArray };
+    const url = state.googleSheetsEndpoint;
+    const headers = {'Content-Type':'application/json'};
+    if(state.googleSheetsToken) headers['X-API-TOKEN'] = state.googleSheetsToken;
+    const res = await fetch(url, { method:'POST', headers, body: JSON.stringify(payload) });
+    if(!res.ok) throw new Error('Respuesta no OK: ' + res.status);
+    return await res.json();
+  }
+
+  /* -----------------------------
+     HELPERS
+     ----------------------------- */
+  function todayKey(){ return new Date().toISOString().split('T')[0]; }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function compareLocal(a,b){
+    const ra = String(a).match(/\d+/); const rb = String(b).match(/\d+/);
+    const na = ra ? parseInt(ra[0]) : 9999; const nb = rb ? parseInt(rb[0]) : 9999;
+    return na - nb;
+  }
+
+  /* -----------------------------
+     INIT: load data and event listeners for online/offline
+     ----------------------------- */
+  window.addEventListener('online', ()=>{ state.isOnline = true; });
+  window.addEventListener('offline', ()=>{ state.isOnline = false; });
+
+  // arrancar: intentar cargar locales/registros previos si había user demo
+  (async ()=>{
+    await loadInitialData();
+    render();
+  })();
+
+  </script>
+</body>
+</html>
