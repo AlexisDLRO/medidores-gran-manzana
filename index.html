@@ -23,7 +23,10 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Iconos de Lucide (simplificados)
+        // URL de tu Google Apps Script
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzkxOP9BhasIMpe_wQwz79G8SSwxm9Ok7VVv8WZxE0cFeF--1ra52u4T6l4skwIbS0Tcg/exec';
+
+        // Iconos
         const Camera = ({ className }) => (
             <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -93,6 +96,20 @@
             </svg>
         );
 
+        const RefreshCw = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <polyline points="23 4 23 10 17 10" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="1 20 1 14 7 14" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+        );
+
+        const CloudUpload = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+        );
+
         const MedidorApp = () => {
           const [user, setUser] = useState(null);
           const [view, setView] = useState('login');
@@ -109,6 +126,8 @@
           const [nombreGuardia, setNombreGuardia] = useState('');
           const [searchTerm, setSearchTerm] = useState('');
           const [isOnline, setIsOnline] = useState(navigator.onLine);
+          const [syncStatus, setSyncStatus] = useState('');
+          const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
           const localesData = [
             {numero: "1-2-3-4-5", inquilino: "Ancla Izquierda", estado: "Vacía", grupo: true},
@@ -250,19 +269,30 @@
           useEffect(() => {
             loadData();
             
-            const handleOnline = () => setIsOnline(true);
+            const handleOnline = () => {
+              setIsOnline(true);
+              sincronizarPendientes();
+            };
             const handleOffline = () => setIsOnline(false);
             
             window.addEventListener('online', handleOnline);
             window.addEventListener('offline', handleOffline);
             
+            // Sincronizar cada 30 segundos si hay internet
+            const intervalSync = setInterval(() => {
+              if (navigator.onLine) {
+                sincronizarPendientes();
+              }
+            }, 30000);
+            
             return () => {
               window.removeEventListener('online', handleOnline);
               window.removeEventListener('offline', handleOffline);
+              clearInterval(intervalSync);
             };
           }, []);
 
-          const loadData = async () => {
+          const loadData = () => {
             try {
               const initialLocales = localesData.map(l => ({
                 ...l,
@@ -270,33 +300,27 @@
                 fechaUltimaLectura: null
               }));
 
-              try {
-                const localesStorage = await window.storage.get('locales-gran-manzana');
-                if (localesStorage) {
-                  const savedLocales = JSON.parse(localesStorage.value);
-                  savedLocales.forEach(saved => {
-                    const local = initialLocales.find(l => String(l.numero) === String(saved.numero));
-                    if (local && saved.ultimaLectura) {
-                      local.ultimaLectura = saved.ultimaLectura;
-                      local.fechaUltimaLectura = saved.fechaUltimaLectura;
-                    }
-                  });
-                }
-              } catch (err) {
-                console.log('No hay datos previos, iniciando frescos');
+              const localesStorage = localStorage.getItem('locales-gran-manzana');
+              if (localesStorage) {
+                const savedLocales = JSON.parse(localesStorage);
+                savedLocales.forEach(saved => {
+                  const local = initialLocales.find(l => String(l.numero) === String(saved.numero));
+                  if (local && saved.ultimaLectura) {
+                    local.ultimaLectura = saved.ultimaLectura;
+                    local.fechaUltimaLectura = saved.fechaUltimaLectura;
+                  }
+                });
               }
 
               setLocales(initialLocales);
 
               const hoy = new Date().toISOString().split('T')[0];
-              try {
-                const registrosData = await window.storage.get(`registros-${hoy}`);
-                if (registrosData) {
-                  setRegistros(JSON.parse(registrosData.value));
-                }
-              } catch (err) {
-                console.log('No hay registros para hoy');
+              const registrosStorage = localStorage.getItem(`registros-${hoy}`);
+              if (registrosStorage) {
+                setRegistros(JSON.parse(registrosStorage));
               }
+
+              contarPendientes();
             } catch (err) {
               console.error('Error cargando datos:', err);
               setLocales(localesData.map(l => ({
@@ -304,6 +328,88 @@
                 ultimaLectura: 0,
                 fechaUltimaLectura: null
               })));
+            }
+          };
+
+          const contarPendientes = () => {
+            try {
+              const pendientes = localStorage.getItem('registros-pendientes');
+              if (pendientes) {
+                const lista = JSON.parse(pendientes);
+                setPendingSyncCount(lista.length);
+              } else {
+                setPendingSyncCount(0);
+              }
+            } catch (err) {
+              setPendingSyncCount(0);
+            }
+          };
+
+          const sincronizarPendientes = async () => {
+            if (!navigator.onLine) {
+              return;
+            }
+
+            try {
+              const pendientes = localStorage.getItem('registros-pendientes');
+              if (!pendientes) return;
+
+              const lista = JSON.parse(pendientes);
+              if (lista.length === 0) return;
+
+              setSyncStatus('Sincronizando...');
+
+              const response = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(lista)
+              });
+
+              // Con no-cors asumimos éxito
+              localStorage.removeItem('registros-pendientes');
+              setPendingSyncCount(0);
+              setSyncStatus('✓ Sincronizado con Google Sheets');
+              setTimeout(() => setSyncStatus(''), 3000);
+
+            } catch (err) {
+              console.error('Error sincronizando:', err);
+              setSyncStatus('Error al sincronizar');
+              setTimeout(() => setSyncStatus(''), 3000);
+            }
+          };
+
+          const guardarRegistroLocal = async (registro) => {
+            try {
+              const hoy = registro.fecha.split('T')[0];
+              
+              const registrosStorage = localStorage.getItem(`registros-${hoy}`);
+              const registrosActuales = registrosStorage ? JSON.parse(registrosStorage) : [];
+              registrosActuales.push(registro);
+              localStorage.setItem(`registros-${hoy}`, JSON.stringify(registrosActuales));
+
+              const pendientes = localStorage.getItem('registros-pendientes');
+              const listaPendientes = pendientes ? JSON.parse(pendientes) : [];
+              
+              const registroParaSync = {
+                ...registro,
+                foto: registro.foto ? true : false
+              };
+              
+              listaPendientes.push(registroParaSync);
+              localStorage.setItem('registros-pendientes', JSON.stringify(listaPendientes));
+              setPendingSyncCount(listaPendientes.length);
+
+              if (navigator.onLine) {
+                setTimeout(() => sincronizarPendientes(), 500);
+              }
+
+              return true;
+            } catch (err) {
+              console.error('Error guardando local:', err);
+              return false;
             }
           };
 
@@ -407,8 +513,15 @@
                 username: user.username
               };
 
+              const guardado = await guardarRegistroLocal(nuevoRegistro);
+              
+              if (!guardado) {
+                setError('Error al guardar el registro');
+                setLoading(false);
+                return;
+              }
+
               const nuevosRegistros = [...registros, nuevoRegistro];
-              await window.storage.set(`registros-${hoy}`, JSON.stringify(nuevosRegistros));
               setRegistros(nuevosRegistros);
 
               const localesActualizados = locales.map(l => 
@@ -416,10 +529,10 @@
                   ? { ...l, ultimaLectura: lecturaNum, fechaUltimaLectura: ahora }
                   : l
               );
-              await window.storage.set('locales-gran-manzana', JSON.stringify(localesActualizados));
+              localStorage.setItem('locales-gran-manzana', JSON.stringify(localesActualizados));
               setLocales(localesActualizados);
 
-              setSuccess(`Local ${selectedLocal} - ${localData.inquilino} registrado correctamente`);
+              setSuccess(`✓ Local ${selectedLocal} - ${localData.inquilino} registrado correctamente`);
               setSelectedLocal('');
               setLectura('');
               setFoto(null);
@@ -446,9 +559,7 @@
                 return match ? parseInt(match[0]) : 9999;
               };
               return getNumero(a.local) - getNumero(b.local);
-            });
-            
-            registrosOrdenados.forEach(r => {
+            });registrosOrdenados.forEach(r => {
               const fecha = new Date(r.fecha);
               const fechaStr = fecha.toLocaleDateString('es-EC');
               const horaStr = fecha.toLocaleTimeString('es-EC');
@@ -576,7 +687,7 @@
 
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
                     <p className="font-semibold mb-1">💡 Modo Offline Habilitado</p>
-                    <p>Esta app funciona sin internet. Los datos se guardan en tu dispositivo.</p>
+                    <p>Esta app funciona sin internet. Los datos se sincronizan automáticamente cuando hay conexión.</p>
                   </div>
                 </div>
               </div>
@@ -616,6 +727,33 @@
                         </button>
                       </div>
                     </div>
+
+                    {syncStatus && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                        {syncStatus}
+                      </div>
+                    )}
+
+                    {pendingSyncCount > 0 && (
+                      <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-yellow-800">
+                            <CloudUpload className="w-5 h-5" />
+                            <span className="text-sm font-medium">
+                              {pendingSyncCount} registros pendientes de sincronizar
+                            </span>
+                          </div>
+                          <button
+                            onClick={sincronizarPendientes}
+                            disabled={!isOnline}
+                            className="flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white rounded-lg transition-colors text-sm"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            Sincronizar ahora
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                       <div className="bg-blue-50 p-4 rounded-lg">
@@ -669,7 +807,8 @@
                     
                     {registrosHoy.length > 0 && (
                       <p className="text-sm text-gray-600 mt-2">
-                        El archivo se descargará con todas las columnas organizadas para abrir en Excel
+                        El archivo se descargará con todas las columnas organizadas para abrir en Excel. 
+                        Los datos también están en Google Sheets.
                       </p>
                     )}
                   </div>
@@ -761,6 +900,21 @@
                       </button>
                     </div>
                   </div>
+
+                  {syncStatus && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                      {syncStatus}
+                    </div>
+                  )}
+
+                  {pendingSyncCount > 0 && !isOnline && (
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                      <div className="flex items-center gap-2">
+                        <CloudUpload className="w-5 h-5" />
+                        <span>{pendingSyncCount} registros se sincronizarán cuando haya internet</span>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="bg-blue-50 p-4 rounded-lg mb-6">
                     <p className="text-sm text-gray-700 mb-2">Progreso de hoy: {progreso.completados} / {progreso.total} locales</p>
@@ -920,5 +1074,3 @@
     </script>
 </body>
 </html>
-```
-
