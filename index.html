@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Gran Manzana - Medidores</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        import React, { useState, useEffect } from 'react';
+import { Camera, LogOut, Download, AlertCircle, CheckCircle, Clock, Calendar, Search, Wifi, WifiOff } from 'lucide-react';
+
+const MedidorApp = () => {
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState('login');
+  const [locales, setLocales] = useState([]);
+  const [selectedLocal, setSelectedLocal] = useState('');
+  const [lectura, setLectura] = useState('');
+  const [foto, setFoto] = useState(null);
+  const [registros, setRegistros] = useState([]);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [nombreGuardia, setNombreGuardia] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  const localesData = [
+    {numero: "1-2-3-4-5", inquilino: "Ancla Izquierda", estado: "Vacía", grupo: true},
+    {numero: 6, inquilino: "Elizabeth Godoy"},
+    {numero: 7, inquilino: "Elizabeth Godoy"},
+    {numero: 8, inquilino: "Elizabeth Godoy"},
+    {numero: 9, inquilino: "Elizabeth Godoy"},
+    {numero: 10, inquilino: "Ama Importadora"},
+    {numero: 11, inquilino: "Temperteck"},
+    {numero: "12-13", inquilino: "Elizabeth Godoy", grupo: true},
+    {numero: 14, inquilino: "Cecilia Moreno"},
+    {numero: 15, inquilino: "Pacific Cargo"},
+    {numero: 16, inquilino: "Dassconfort"},
+    {numero: 17, inquilino: "Dassconfort"},
+    {numero: 18, inquilino: "Jessica Aragon"},
+    {numero: 19, inquilino: "Roger Echanique"},
+    {numero: 20, inquilino: "Premiuntech"},
+    {numero: 21, inquilino: "Premiuntech"},
+    {numero: 22, inquilino: "Premiuntech"},
+    {numero: 23, inquilino: "Aviauto"},
+    {numero: 24, inquilino: "Frankimport"},
+    {numero: 25, inquilino: "Equindeca"},
+    {numero: 26, inquilino: "MedicHome"},
+    {numero: 27, inquilino: "MedicHome"},
+    {numero: 28, inquilino: "Aviauto"},
+    {numero: 29, inquilino: "Aviauto"},
+    {numero: 30, inquilino: "Mauricio Negrete"},
+    {numero: 31, inquilino: "Dulcalab"},
+    {numero: "32-33-34", inquilino: "Equindeca", grupo: true},
+    {numero: 35, inquilino: "She"},
+    {numero: 36, inquilino: "AutoCentrum"},
+    {numero: 37, inquilino: "Ignacio Baque"},
+    {numero: 38, inquilino: "Surtibell"},
+    {numero: 39, inquilino: "Cendecom"},
+    {numero: 40, inquilino: "Camembert"},
+    {numero: 41, inquilino: "Bitelnet"},
+    {numero: 42, inquilino: "Kaseruc"},
+    {numero: 43, inquilino: "Gilbert Global"},
+    {numero: 44, inquilino: "Gilbert Global"},
+    {numero: 45, inquilino: "Patsy Perez"},
+    {numero: 46, inquilino: "RecorDental"},
+    {numero: 47, inquilino: "Elektorres"},
+    {numero: 48, inquilino: "Innovamedikal"},
+    {numero: 49, inquilino: "Innovamedikal"},
+    {numero: "50-51-52", inquilino: "Jorge Vera", grupo: true},
+    {numero: 53, inquilino: "Patricia Celleri"},
+    {numero: 54, inquilino: "Imporfrio"},
+    {numero: 55, inquilino: "Proteinas & Company"},
+    {numero: 56, inquilino: "Corpkadilac"},
+    {numero: 57, inquilino: "Corpkadilac"},
+    {numero: "58-59", inquilino: "Kissu", grupo: true},
+    {numero: 60, inquilino: "Bticino"},
+    {numero: 61, inquilino: "Rigotech"},
+    {numero: 62, inquilino: "Samsung"},
+    {numero: 63, inquilino: "VentaMark"},
+    {numero: 64, inquilino: "VentaMark"},
+    {numero: 65, inquilino: "Qaltrom"},
+    {numero: 66, inquilino: "Qaltrom"},
+    {numero: 67, inquilino: "James Brown"},
+    {numero: 68, inquilino: "James Brown"},
+    {numero: 69, inquilino: "Coop. 27 de Noviembre"},
+    {numero: 70, inquilino: "Beatriz Roman"},
+    {numero: 71, inquilino: "Kaseruc"},
+    {numero: 72, inquilino: "RecorDental"},
+    {numero: 73, inquilino: "Corpkadilac"},
+    {numero: "74-75", inquilino: "Innovamedikal", grupo: true},
+    {numero: 76, inquilino: "Yessenia Fernandez"},
+    {numero: "77-78", inquilino: "Corpkadilac", grupo: true},
+    {numero: 79, inquilino: "Corpkadilac"},
+    {numero: "80-81-82-83-84", inquilino: "Consorcio Gane", grupo: true},
+    {numero: "85-86-87", inquilino: "Elvis Crespo", grupo: true},
+    {numero: 88, inquilino: "Enterprise Motors"},
+    {numero: 89, inquilino: "Enterprise Motors"},
+    {numero: 90, inquilino: "Enterprise Motors"},
+    {numero: 91, inquilino: "Karina Nazareno"},
+    {numero: 92, inquilino: "Rapsecon"},
+    {numero: 93, inquilino: "Rapsecon"},
+    {numero: 94, inquilino: "FootCell"},
+    {numero: "95-96-97", inquilino: "Sesinaqua", grupo: true},
+    {numero: 98, inquilino: "Innovamedikal"},
+    {numero: 99, inquilino: "ServiCar"},
+    {numero: "100-101", inquilino: "Kissu", grupo: true},
+    {numero: 102, inquilino: "Vacío"},
+    {numero: 103, inquilino: "TKVElectros"},
+    {numero: 104, inquilino: "Schullo"},
+    {numero: 105, inquilino: "Schullo"},
+    {numero: 106, inquilino: "Barbara Adum"},
+    {numero: 107, inquilino: "Envios Rapidos"},
+    {numero: 108, inquilino: "Kaseruc"},
+    {numero: 109, inquilino: "Camembert"},
+    {numero: 110, inquilino: "Camembert"},
+    {numero: 111, inquilino: "Andrea Naula"},
+    {numero: 112, inquilino: "Norvida"},
+    {numero: 113, inquilino: "Norvida"},
+    {numero: 114, inquilino: "Norvida"},
+    {numero: "115-116", inquilino: "Norvida", grupo: true},
+    {numero: 117, inquilino: "Norvida"},
+    {numero: 118, inquilino: "Norvida"},
+    {numero: 119, inquilino: "Norvida"},
+    {numero: 120, inquilino: "Norvida"},
+    {numero: 121, inquilino: "Norvida"},
+    {numero: 122, inquilino: "Norvida"},
+    {numero: 123, inquilino: "Camembert"},
+    {numero: 124, inquilino: "Ricardo Cedeño"},
+    {numero: 125, inquilino: "Jami"},
+    {numero: 126, inquilino: "Sinpetsa"},
+    {numero: 127, inquilino: "Vacío"},
+    {numero: 128, inquilino: "Vacío"},
+    {numero: 129, inquilino: "Rayos X"},
+    {numero: 130, inquilino: "Distrimass"},
+    {numero: 131, inquilino: "Pharmatotal"},
+    {numero: 132, inquilino: "Pharmatotal"},
+    {numero: 133, inquilino: "K'archer"},
+    {numero: "R-CG", inquilino: "Riego Consorcio Gane"},
+    {numero: "R-BM", inquilino: "Riego Banco de Miro"},
+    {numero: "B-PUB", inquilino: "Baños Publicos"},
+    {numero: "B-EMP", inquilino: "Baños de empleados"},
+    {numero: "B-GAN", inquilino: "Baños Gane"},
+    {numero: "ML-L6", inquilino: "Medidor Limpieza (L6)"},
+    {numero: "ML-L15", inquilino: "Medidor Limpieza (L15)"},
+    {numero: "ML-L24", inquilino: "Medidor Limpieza (L24)"},
+    {numero: "ML-L41", inquilino: "Medidor Limpieza (L41)"},
+    {numero: "ML-L60", inquilino: "Medidor Limpieza (L60)"},
+    {numero: "ML-L68", inquilino: "Medidor Limpieza (L68)"},
+    {numero: "ML-L79", inquilino: "Medidor Limpieza (L79)"},
+    {numero: "ML-L87", inquilino: "Medidor Limpieza (L87)"},
+    {numero: "ML-L102", inquilino: "Medidor Limpieza (L102)"},
+    {numero: "ML-L108", inquilino: "Medidor Limpieza (L108)"},
+    {numero: "ML-L123", inquilino: "Medidor Limpieza (L123)"},
+    {numero: "M-OFI", inquilino: "Contenedor 1 atrás Oficina"},
+    {numero: "M-L49", inquilino: "Contenedor 2 atrás L49"},
+    {numero: "M-BOM", inquilino: "Cuarto de Bombas"},
+    {numero: "M-GEN", inquilino: "Medidor General"},
+    {numero: "MAD-001", inquilino: "Medidor Adicional 001"},
+    {numero: "MAD-002", inquilino: "Medidor Adicional 002"},
+    {numero: "MAD-003", inquilino: "Medidor Adicional 003"}
+  ];
+
+  useEffect(() => {
+    loadData();
+    
+    // Detectar cambios de conexión
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const loadData = async () => {
+    try {
+      // Inicializar locales siempre con los datos predefinidos
+      const initialLocales = localesData.map(l => ({
+        ...l,
+        ultimaLectura: 0,
+        fechaUltimaLectura: null
+      }));
+
+      // Intentar cargar datos previos de lecturas
+      try {
+        const localesStorage = await window.storage.get('locales-gran-manzana');
+        if (localesStorage) {
+          const savedLocales = JSON.parse(localesStorage.value);
+          // Actualizar solo las lecturas previas
+          savedLocales.forEach(saved => {
+            const local = initialLocales.find(l => String(l.numero) === String(saved.numero));
+            if (local && saved.ultimaLectura) {
+              local.ultimaLectura = saved.ultimaLectura;
+              local.fechaUltimaLectura = saved.fechaUltimaLectura;
+            }
+          });
+        }
+      } catch (err) {
+        console.log('No hay datos previos, iniciando frescos');
+      }
+
+      setLocales(initialLocales);
+
+      // Cargar registros del día
+      const hoy = new Date().toISOString().split('T')[0];
+      try {
+        const registrosData = await window.storage.get(`registros-${hoy}`);
+        if (registrosData) {
+          setRegistros(JSON.parse(registrosData.value));
+        }
+      } catch (err) {
+        console.log('No hay registros para hoy');
+      }
+    } catch (err) {
+      console.error('Error cargando datos:', err);
+      // En caso de error, al menos cargar los locales básicos
+      setLocales(localesData.map(l => ({
+        ...l,
+        ultimaLectura: 0,
+        fechaUltimaLectura: null
+      })));
+    }
+  };
+
+  const handleLogin = () => {
+    const usuarios = {
+      'guardia': { password: '1234', rol: 'guardia' },
+      'admin': { password: 'admin123', nombre: 'Administrador', rol: 'admin' }
+    };
+
+    if (loginUsername === 'guardia') {
+      if (usuarios[loginUsername].password === loginPassword) {
+        if (!nombreGuardia.trim()) {
+          setError('Por favor ingrese su nombre completo');
+          return;
+        }
+        setUser({ username: loginUsername, nombre: nombreGuardia.trim(), rol: 'guardia' });
+        setView('registro');
+        setError('');
+        setLoginUsername('');
+        setLoginPassword('');
+        setNombreGuardia('');
+      } else {
+        setError('Contraseña incorrecta');
+      }
+    } else if (usuarios[loginUsername] && usuarios[loginUsername].password === loginPassword) {
+      setUser({ username: loginUsername, ...usuarios[loginUsername] });
+      setView(usuarios[loginUsername].rol === 'admin' ? 'admin' : 'registro');
+      setError('');
+      setLoginUsername('');
+      setLoginPassword('');
+    } else {
+      setError('Usuario o contraseña incorrectos');
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5000000) {
+        setError('La foto es muy grande. Máximo 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFoto(reader.result);
+        setError('');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const validarLectura = () => {
+    const local = locales.find(l => String(l.numero) === String(selectedLocal));
+    const lecturaNum = parseFloat(lectura);
+
+    if (!selectedLocal) return 'Debe seleccionar un local';
+    if (!lectura || isNaN(lecturaNum)) return 'Debe ingresar una lectura válida';
+    if (local.ultimaLectura && lecturaNum < local.ultimaLectura) {
+      return `La lectura no puede ser menor a la anterior (${local.ultimaLectura})`;
+    }
+    if (local.ultimaLectura && lecturaNum > local.ultimaLectura + 1000) {
+      return `La lectura parece muy alta. Anterior: ${local.ultimaLectura}, Nueva: ${lecturaNum}. ¿Está seguro?`;
+    }
+
+    const hoy = new Date().toISOString().split('T')[0];
+    const yaRegistrado = registros.find(r => 
+      String(r.local) === String(selectedLocal) && 
+      r.fecha.split('T')[0] === hoy
+    );
+    if (yaRegistrado) return 'Este local ya fue registrado hoy';
+
+    return null;
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    const errorValidacion = validarLectura();
+    if (errorValidacion) {
+      setError(errorValidacion);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const ahora = new Date().toISOString();
+      const hoy = ahora.split('T')[0];
+      const lecturaNum = parseFloat(lectura);
+      const localData = locales.find(l => String(l.numero) === String(selectedLocal));
+
+      const nuevoRegistro = {
+        id: Date.now(),
+        local: selectedLocal,
+        inquilino: localData.inquilino,
+        lectura: lecturaNum,
+        foto: foto,
+        fecha: ahora,
+        guardia: user.nombre,
+        username: user.username
+      };
+
+      const nuevosRegistros = [...registros, nuevoRegistro];
+      await window.storage.set(`registros-${hoy}`, JSON.stringify(nuevosRegistros));
+      setRegistros(nuevosRegistros);
+
+      const localesActualizados = locales.map(l => 
+        String(l.numero) === String(selectedLocal)
+          ? { ...l, ultimaLectura: lecturaNum, fechaUltimaLectura: ahora }
+          : l
+      );
+      await window.storage.set('locales-gran-manzana', JSON.stringify(localesActualizados));
+      setLocales(localesActualizados);
+
+      setSuccess(`Local ${selectedLocal} - ${localData.inquilino} registrado correctamente`);
+      setSelectedLocal('');
+      setLectura('');
+      setFoto(null);
+      setSearchTerm('');
+      
+      const fileInput = document.getElementById('foto-input');
+      if (fileInput) fileInput.value = '';
+
+    } catch (err) {
+      setError('Error al guardar el registro: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportarExcel = () => {
+    const hoy = new Date().toISOString().split('T')[0];
+    
+    // Usar punto y coma (;) como separador para Excel en español
+    let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
+    
+    // Ordenar registros por local
+    const registrosOrdenados = [...registros].sort((a, b) => {
+      const getNumero = (local) => {
+        const match = String(local).match(/\d+/);
+        return match ? parseInt(match[0]) : 9999;
+      };
+      return getNumero(a.local) - getNumero(b.local);
+    });
+    
+    // Agregar cada registro como una fila
+    registrosOrdenados.forEach(r => {
+      const fecha = new Date(r.fecha);
+      const fechaStr = fecha.toLocaleDateString('es-EC');
+      const horaStr = fecha.toLocaleTimeString('es-EC');
+      const tieneFoto = r.foto ? 'Sí' : 'No';
+      
+      // Limpiar textos para Excel
+      const limpiar = (texto) => {
+        texto = String(texto).replace(/;/g, ','); // Reemplazar punto y coma por coma
+        return texto;
+      };
+      
+      csv += `${fechaStr};${horaStr};${limpiar(r.local)};${limpiar(r.inquilino)};${r.lectura};${limpiar(r.guardia)};${tieneFoto}\n`;
+    });
+
+    // Crear y descargar el archivo
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lecturas-gran-manzana-${hoy}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const calcularProgreso = () => {
+    const hoy = new Date().toISOString().split('T')[0];
+    const registrosHoy = registros.filter(r => r.fecha.split('T')[0] === hoy);
+    return {
+      completados: registrosHoy.length,
+      total: locales.length,
+      porcentaje: Math.round((registrosHoy.length / locales.length) * 100)
+    };
+  };
+
+  const filteredLocales = locales.filter(local => {
+    const search = searchTerm.toLowerCase();
+    return (
+      String(local.numero).toLowerCase().includes(search) ||
+      local.inquilino.toLowerCase().includes(search)
+    );
+  });
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">La Gran Manzana</h1>
+            <p className="text-gray-600">Sistema de Registro de Medidores</p>
+            <div className="mt-3 flex items-center justify-center gap-2">
+              {isOnline ? (
+                <span className="flex items-center gap-1 text-green-600 text-sm">
+                  <Wifi className="w-4 h-4" />
+                  Conectado
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-orange-600 text-sm">
+                  <WifiOff className="w-4 h-4" />
+                  Sin conexión (Modo Offline)
+                </span>
+              )}
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Usuario</label>
+              <input
+                type="text"
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ingrese su usuario"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ingrese su contraseña"
+              />
+            </div>
+
+            {loginUsername === 'guardia' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre y Apellido *</label>
+                <input
+                  type="text"
+                  value={nombreGuardia}
+                  onChange={(e) => setNombreGuardia(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ej: Juan Pérez"
+                />
+              </div>
+            )}
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            <button
+              onClick={handleLogin}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors"
+            >
+              Iniciar Sesión
+            </button>
+          </div>
+
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
+            <p className="font-semibold mb-2">Usuarios:</p>
+            <p><strong>Guardias:</strong> guardia (contraseña: 1234)</p>
+            <p className="text-xs text-gray-500 mt-1">* Después de ingresar usuario y contraseña, escriba su nombre completo</p>
+            <p className="mt-2"><strong>Admin:</strong> admin (contraseña: admin123)</p>
+          </div>
+
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+            <p className="font-semibold mb-1">💡 Modo Offline Habilitado</p>
+            <p>Esta app funciona sin internet. Los datos se guardan en tu dispositivo.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'admin') {
+    const progreso = calcularProgreso();
+    const hoy = new Date().toISOString().split('T')[0];
+    const registrosHoy = registros.filter(r => r.fecha.split('T')[0] === hoy);
+
+    return (
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">Panel Administrativo</h1>
+                <p className="text-gray-600">Bienvenido, {user.nombre}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {isOnline ? (
+                  <span className="flex items-center gap-1 text-green-600 text-sm">
+                    <Wifi className="w-4 h-4" />
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-orange-600 text-sm">
+                    <WifiOff className="w-4 h-4" />
+                  </span>
+                )}
+                <button
+                  onClick={() => { setUser(null); setView('login'); }}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Salir
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-8 h-8 text-blue-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">Fecha</p>
+                    <p className="text-xl font-bold text-gray-800">{new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-green-50 p-4 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">Registrados Hoy</p>
+                    <p className="text-xl font-bold text-gray-800">{progreso.completados} / {progreso.total}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-8 h-8 text-purple-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">Progreso</p>
+                    <p className="text-xl font-bold text-gray-800">{progreso.porcentaje}%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <div className="w-full bg-gray-200 rounded-full h-4">
+                <div
+                  className="bg-blue-600 h-4 rounded-full transition-all duration-500"
+                  style={{ width: `${progreso.porcentaje}%` }}
+                ></div>
+              </div>
+            </div>
+
+            <button
+              onClick={exportarExcel}
+              disabled={registrosHoy.length === 0}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors font-semibold"
+            >
+              <Download className="w-5 h-5" />
+              Exportar a Excel ({registrosHoy.length} registros)
+            </button>
+            
+            {registrosHoy.length > 0 && (
+              <p className="text-sm text-gray-600 mt-2">
+                El archivo se descargará con todas las columnas organizadas para abrir en Excel
+              </p>
+            )}
+          </div>
+
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Registros de Hoy</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Local</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Inquilino</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Lectura</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Hora</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Guardia</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Foto</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {registrosHoy.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
+                        No hay registros para hoy
+                      </td>
+                    </tr>
+                  ) : (
+                    registrosHoy
+                      .sort((a, b) => {
+                        const numA = typeof a.local === 'number' ? a.local : 999;
+                        const numB = typeof b.local === 'number' ? b.local : 999;
+                        return numA - numB;
+                      })
+                      .map(r => (
+                        <tr key={r.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{r.lectura} m³</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {new Date(r.fecha).toLocaleTimeString()}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{r.guardia}</td>
+                          <td className="px-4 py-3">
+                            <img src={r.foto} alt="Medidor" className="w-16 h-16 object-cover rounded cursor-pointer" 
+                                 onClick={() => window.open(r.foto, '_blank')} />
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const progreso = calcularProgreso();
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Registro de Medidores</h1>
+              <p className="text-gray-600">Hola, {user.nombre}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {isOnline ? (
+                <span className="flex items-center gap-1 text-green-600 text-sm">
+                  <Wifi className="w-4 h-4" />
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-orange-600 text-sm">
+                  <WifiOff className="w-4 h-4" />
+                </span>
+              )}
+              <button
+                onClick={() => { setUser(null); setView('login'); }}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Salir
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 p-4 rounded-lg mb-6">
+            <p className="text-sm text-gray-700 mb-2">Progreso de hoy: {progreso.completados} / {progreso.total} locales</p>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className="bg-blue-600 h-3 rounded-full transition-all duration-500"
+                style={{ width: `${progreso.porcentaje}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2 mb-4">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
+
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-start gap-2 mb-4">
+              <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span className="text-sm">{success}</span>
+            </div>
+          )}
+
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Buscar Local o Inquilino
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ej: 25, Equindeca, Baños..."
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Seleccionar Local *
+              </label>
+              <select
+                value={selectedLocal}
+                onChange={(e) => setSelectedLocal(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-48"
+              >
+                <option value="">-- Seleccione un local --</option>
+                {filteredLocales.map(local => {
+                  const hoy = new Date().toISOString().split('T')[0];
+                  const yaRegistrado = registros.find(r => 
+                    String(r.local) === String(local.numero) && 
+                    r.fecha.split('T')[0] === hoy
+                  );
+                  const etiqueta = local.grupo ? `${local.numero} (Medidor Compartido)` : local.numero;
+                  return (
+                    <option key={local.numero} value={local.numero} disabled={yaRegistrado}>
+                      {etiqueta} - {local.inquilino} {yaRegistrado ? '✓' : ''}
+                      {local.ultimaLectura > 0 ? ` (${local.ultimaLectura} m³)` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+              {searchTerm && filteredLocales.length === 0 && (
+                <p className="text-sm text-gray-500 mt-2">No se encontraron locales</p>
+              )}
+            </div>
+
+            {selectedLocal && (
+              <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>Local {selectedLocal} - {locales.find(l => String(l.numero) === String(selectedLocal))?.inquilino}</strong>
+                  <br />
+                  Última lectura: {locales.find(l => String(l.numero) === String(selectedLocal))?.ultimaLectura || 0} m³
+                  {locales.find(l => String(l.numero) === String(selectedLocal))?.fechaUltimaLectura && (
+                    <span className="block text-xs mt-1">
+                      Fecha: {new Date(locales.find(l => String(l.numero) === String(selectedLocal)).fechaUltimaLectura).toLocaleDateString()}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lectura del Medidor (m³) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={lectura}
+                onChange={(e) => setLectura(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ej: 1234.56"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Foto del Medidor (opcional)
+              </label>
+              <input
+                id="foto-input"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {foto && (
+                <div className="mt-4">
+                  <img src={foto} alt="Preview" className="w-full max-h-64 object-contain rounded-lg border border-gray-300" />
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition-colors"
+            >
+              <Camera className="w-5 h-5" />
+              {loading ? 'Guardando...' : 'Registrar Lectura'}
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">Mis Registros de Hoy</h2>
+          <div className="space-y-3">
+            {registros
+              .filter(r => r.username === user.username && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0])
+              .map(r => (
+                <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-800">{r.local} - {r.inquilino}</p>
+                    <p className="text-sm text-gray-600">{r.lectura} m³ - {new Date(r.fecha).toLocaleTimeString()}</p>
+                  </div>
+                  <CheckCircle className="w-6 h-6 text-green-500" />
+                </div>
+              ))}
+            {registros.filter(r => r.username === user.username && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0]).length === 0 && (
+              <p className="text-center text-gray-500 py-4">No has registrado ningún local hoy</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MedidorApp;
+    </script>
+</body>
+</html>
