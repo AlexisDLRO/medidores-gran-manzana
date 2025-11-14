@@ -278,7 +278,6 @@
             window.addEventListener('online', handleOnline);
             window.addEventListener('offline', handleOffline);
             
-            // Sincronizar cada 30 segundos si hay internet
             const intervalSync = setInterval(() => {
               if (navigator.onLine) {
                 sincronizarPendientes();
@@ -368,7 +367,6 @@
                 body: JSON.stringify(lista)
               });
 
-              // Con no-cors asumimos éxito
               localStorage.removeItem('registros-pendientes');
               setPendingSyncCount(0);
               setSyncStatus('✓ Sincronizado con Google Sheets');
@@ -381,7 +379,7 @@
             }
           };
 
-          const guardarRegistroLocal = async (registro) => {
+          const guardarRegistroLocal = (registro) => {
             try {
               const hoy = registro.fecha.split('T')[0];
               
@@ -394,7 +392,13 @@
               const listaPendientes = pendientes ? JSON.parse(pendientes) : [];
               
               const registroParaSync = {
-                ...registro,
+                id: registro.id,
+                local: registro.local,
+                inquilino: registro.inquilino,
+                lectura: registro.lectura,
+                guardia: registro.guardia,
+                fecha: registro.fecha,
+                username: registro.username,
                 foto: registro.foto ? true : false
               };
               
@@ -484,7 +488,7 @@
             return null;
           };
 
-          const handleSubmit = async () => {
+          const handleSubmit = () => {
             setLoading(true);
             setError('');
             setSuccess('');
@@ -513,10 +517,10 @@
                 username: user.username
               };
 
-              const guardado = await guardarRegistroLocal(nuevoRegistro);
+              const guardado = guardarRegistroLocal(nuevoRegistro);
               
               if (!guardado) {
-                setError('Error al guardar el registro');
+                setError('Error al guardar el registro localmente');
                 setLoading(false);
                 return;
               }
@@ -558,8 +562,11 @@
                 const match = String(local).match(/\d+/);
                 return match ? parseInt(match[0]) : 9999;
               };
+              return
               return getNumero(a.local) - getNumero(b.local);
-            });registrosOrdenados.forEach(r => {
+            });
+            
+            registrosOrdenados.forEach(r => {
               const fecha = new Date(r.fecha);
               const fechaStr = fecha.toLocaleDateString('es-EC');
               const horaStr = fecha.toLocaleTimeString('es-EC');
@@ -837,9 +844,11 @@
                           ) : (
                             registrosHoy
                               .sort((a, b) => {
-                                const numA = typeof a.local === 'number' ? a.local : 999;
-                                const numB = typeof b.local === 'number' ? b.local : 999;
-                                return numA - numB;
+                                const getNumero = (local) => {
+                                  const match = String(local).match(/\d+/);
+                                  return match ? parseInt(match[0]) : 9999;
+                                };
+                                return getNumero(a.local) - getNumero(b.local);
                               })
                               .map(r => (
                                 <tr key={r.id} className="hover:bg-gray-50">
@@ -964,7 +973,7 @@
                       <select
                         value={selectedLocal}
                         onChange={(e) => setSelectedLocal(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-48"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="">-- Seleccione un local --</option>
                         {filteredLocales.map(local => {
@@ -1074,3 +1083,5 @@
     </script>
 </body>
 </html>
+</html>
+
