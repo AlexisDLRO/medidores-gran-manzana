@@ -9,6 +9,11 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    
     <style>
         body {
             margin: 0;
@@ -23,8 +28,27 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // URL de tu Google Apps Script
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzkxOP9BhasIMpe_wQwz79G8SSwxm9Ok7VVv8WZxE0cFeF--1ra52u4T6l4skwIbS0Tcg/exec';
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBPXla7YqNoliInFsAdc7oOKzJJYDwaFNw",
+            authDomain: "lecuturalgm.firebaseapp.com",
+            databaseURL: "https://lecuturalgm-default-rtdb.firebaseio.com",
+            projectId: "lecuturalgm",
+            storageBucket: "lecuturalgm.firebasestorage.app",
+            messagingSenderId: "621012758970",
+            appId: "1:621012758970:web:524cde20770e7475086d83",
+            measurementId: "G-HD1EHQMDVN"
+        };
+
+        // Inicializar Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            console.log('Firebase inicializado correctamente');
+        } catch (error) {
+            console.error('Error inicializando Firebase:', error);
+        }
+        
+        const database = firebase.database();
 
         // Iconos
         const Camera = ({ className }) => (
@@ -128,16 +152,23 @@
           const [isOnline, setIsOnline] = useState(navigator.onLine);
           const [syncStatus, setSyncStatus] = useState('');
           const [pendingSyncCount, setPendingSyncCount] = useState(0);
+          const [registrosRemotos, setRegistrosRemotos] = useState([]);
+          const [syncEnabled, setSyncEnabled] = useState(true);
 
           const localesData = [
-            {numero: "1-2-3-4-5", inquilino: "Ancla Izquierda", estado: "Vacía", grupo: true},
+            {numero: 1, inquilino: "Ancla Izquierda", estado: "Vacía"},
+            {numero: 2, inquilino: "Ancla Izquierda", estado: "Vacía"},
+            {numero: 3, inquilino: "Ancla Izquierda", estado: "Vacía"},
+            {numero: 4, inquilino: "Ancla Izquierda", estado: "Vacía"},
+            {numero: 5, inquilino: "Ancla Izquierda", estado: "Vacía"},
             {numero: 6, inquilino: "Elizabeth Godoy"},
             {numero: 7, inquilino: "Elizabeth Godoy"},
             {numero: 8, inquilino: "Elizabeth Godoy"},
             {numero: 9, inquilino: "Elizabeth Godoy"},
             {numero: 10, inquilino: "Ama Importadora"},
             {numero: 11, inquilino: "Temperteck"},
-            {numero: "12-13", inquilino: "Elizabeth Godoy", grupo: true},
+            {numero: 12, inquilino: "Elizabeth Godoy"},
+            {numero: 13, inquilino: "Elizabeth Godoy"},
             {numero: 14, inquilino: "Cecilia Moreno"},
             {numero: 15, inquilino: "Pacific Cargo"},
             {numero: 16, inquilino: "Dassconfort"},
@@ -158,7 +189,7 @@
             {numero: 31, inquilino: "Dulcalab"},
             {numero: 32, inquilino: "Equindeca"},
             {numero: 33, inquilino: "Equindeca"},
-            {numero: 34, inquilino: "Equindeca"},   
+            {numero: 34, inquilino: "Equindeca"},            
             {numero: 35, inquilino: "She"},
             {numero: 36, inquilino: "AutoCentrum"},
             {numero: 37, inquilino: "Ignacio Baque"},
@@ -174,13 +205,16 @@
             {numero: 47, inquilino: "Elektorres"},
             {numero: 48, inquilino: "Innovamedikal"},
             {numero: 49, inquilino: "Innovamedikal"},
-            {numero: "50-51-52", inquilino: "Jorge Vera", grupo: true},
+            {numero: 50, inquilino: "Jorge Vera"},
+            {numero: 51, inquilino: "Jorge Vera"},
+            {numero: 52, inquilino: "Jorge Vera"},
             {numero: 53, inquilino: "Patricia Celleri"},
             {numero: 54, inquilino: "Imporfrio"},
             {numero: 55, inquilino: "Proteinas & Company"},
             {numero: 56, inquilino: "Corpkadilac"},
             {numero: 57, inquilino: "Corpkadilac"},
-            {numero: "58-59", inquilino: "Kissu", grupo: true},
+            {numero: 58, inquilino: "Kissu"},
+            {numero: 59, inquilino: "Kissu"},
             {numero: 60, inquilino: "Bticino"},
             {numero: 61, inquilino: "Rigotech"},
             {numero: 62, inquilino: "Samsung"},
@@ -195,12 +229,20 @@
             {numero: 71, inquilino: "Kaseruc"},
             {numero: 72, inquilino: "RecorDental"},
             {numero: 73, inquilino: "Corpkadilac"},
-            {numero: "74-75", inquilino: "Innovamedikal", grupo: true},
+            {numero: 74, inquilino: "Innovamedikal"},
+            {numero: 75, inquilino: "Innovamedikal"},
             {numero: 76, inquilino: "Yessenia Fernandez"},
-            {numero: "77-78", inquilino: "Corpkadilac", grupo: true},
+            {numero: 77, inquilino: "Corpkadilac"},
+            {numero: 78, inquilino: "Corpkadilac"},
             {numero: 79, inquilino: "Corpkadilac"},
-            {numero: "80-81-82-83-84", inquilino: "Consorcio Gane", grupo: true},
-            {numero: "85-86-87", inquilino: "Elvis Crespo", grupo: true},
+            {numero: 80, inquilino: "Consorcio Gane"},
+            {numero: 81, inquilino: "Consorcio Gane"},
+            {numero: 82, inquilino: "Consorcio Gane"},
+            {numero: 83, inquilino: "Consorcio Gane"},
+            {numero: 84, inquilino: "Consorcio Gane"},
+            {numero: 85, inquilino: "Elvis Crespo"},
+            {numero: 86, inquilino: "Elvis Crespo"},
+            {numero: 87, inquilino: "Elvis Crespo"},
             {numero: 88, inquilino: "Enterprise Motors"},
             {numero: 89, inquilino: "Enterprise Motors"},
             {numero: 90, inquilino: "Enterprise Motors"},
@@ -208,10 +250,13 @@
             {numero: 92, inquilino: "Rapsecon"},
             {numero: 93, inquilino: "Rapsecon"},
             {numero: 94, inquilino: "FootCell"},
-            {numero: "95-96-97", inquilino: "Sesinaqua", grupo: true},
+            {numero: 95, inquilino: "Sesinaqua"},
+            {numero: 96, inquilino: "Sesinaqua"},
+            {numero: 97, inquilino: "Sesinaqua"},
             {numero: 98, inquilino: "Innovamedikal"},
             {numero: 99, inquilino: "ServiCar"},
-            {numero: "100-101", inquilino: "Kissu", grupo: true},
+            {numero: 100, inquilino: "Kissu"},
+            {numero: 101, inquilino: "Kissu"},
             {numero: 102, inquilino: "Vacío"},
             {numero: 103, inquilino: "TKVElectros"},
             {numero: 104, inquilino: "Schullo"},
@@ -225,7 +270,8 @@
             {numero: 112, inquilino: "Norvida"},
             {numero: 113, inquilino: "Norvida"},
             {numero: 114, inquilino: "Norvida"},
-            {numero: "115-116", inquilino: "Norvida", grupo: true},
+            {numero: 115, inquilino: "Norvida"},
+            {numero: 116, inquilino: "Norvida"},
             {numero: 117, inquilino: "Norvida"},
             {numero: 118, inquilino: "Norvida"},
             {numero: 119, inquilino: "Norvida"},
@@ -268,30 +314,117 @@
             {numero: "MAD-003", inquilino: "Medidor Adicional 003"}
           ];
 
+          // Función para subir registros a Firebase
+          const subirRegistrosAFirebase = async (registrosParaSubir) => {
+            if (!syncEnabled || !navigator.onLine) return false;
+            
+            try {
+              const fechaHoy = new Date().toISOString().split('T')[0];
+              const registrosRef = database.ref(`registros/${fechaHoy}`);
+              
+              // Subir cada registro
+              for (const registro of registrosParaSubir) {
+                await registrosRef.push({
+                  ...registro,
+                  sincronizado: new Date().toISOString(),
+                  dispositivo: navigator.userAgent
+                });
+              }
+              
+              console.log('Registros subidos a Firebase correctamente');
+              return true;
+            } catch (error) {
+              console.error('Error subiendo a Firebase:', error);
+              return false;
+            }
+          };
+
+          // Función para obtener registros de Firebase (solo admin)
+          const obtenerRegistrosDeFirebase = async (fecha = null) => {
+            if (!user || user.rol !== 'admin') return;
+            
+            try {
+              const fechaConsulta = fecha || new Date().toISOString().split('T')[0];
+              const registrosRef = database.ref(`registros/${fechaConsulta}`);
+              
+              registrosRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                  const registrosArray = Object.values(data);
+                  setRegistrosRemotos(registrosArray);
+                } else {
+                  setRegistrosRemotos([]);
+                }
+              });
+              
+            } catch (error) {
+              console.error('Error obteniendo registros de Firebase:', error);
+            }
+          };
+
+          // Sincronizar pendientes con Firebase
+          const sincronizarConFirebase = async () => {
+            if (!navigator.onLine || !syncEnabled) return;
+            
+            try {
+              const pendientesFirebase = localStorage.getItem('registros-pendientes-firebase');
+              if (!pendientesFirebase) return;
+
+              const listaPendientes = JSON.parse(pendientesFirebase);
+              if (listaPendientes.length === 0) return;
+
+              setSyncStatus('Sincronizando con la nube...');
+              
+              const subido = await subirRegistrosAFirebase(listaPendientes);
+              
+              if (subido) {
+                localStorage.removeItem('registros-pendientes-firebase');
+                setPendingSyncCount(0);
+                setSyncStatus('✓ Sincronizado con la nube');
+                setTimeout(() => setSyncStatus(''), 3000);
+              } else {
+                setSyncStatus('Error al sincronizar con la nube');
+                setTimeout(() => setSyncStatus(''), 3000);
+              }
+
+            } catch (err) {
+              console.error('Error sincronizando con Firebase:', err);
+              setSyncStatus('Error de sincronización');
+              setTimeout(() => setSyncStatus(''), 3000);
+            }
+          };
+
           useEffect(() => {
             loadData();
             
             const handleOnline = () => {
               setIsOnline(true);
-              sincronizarPendientes();
+              sincronizarConFirebase();
             };
+            
             const handleOffline = () => setIsOnline(false);
             
             window.addEventListener('online', handleOnline);
             window.addEventListener('offline', handleOffline);
             
-            const intervalSync = setInterval(() => {
-              if (navigator.onLine) {
-                sincronizarPendientes();
+            // Sincronización periódica con Firebase
+            const intervalFirebase = setInterval(() => {
+              if (navigator.onLine && syncEnabled) {
+                sincronizarConFirebase();
               }
             }, 30000);
+            
+            // Si es admin, obtener registros de Firebase
+            if (user && user.rol === 'admin') {
+              obtenerRegistrosDeFirebase();
+            }
             
             return () => {
               window.removeEventListener('online', handleOnline);
               window.removeEventListener('offline', handleOffline);
-              clearInterval(intervalSync);
+              clearInterval(intervalFirebase);
             };
-          }, []);
+          }, [user, syncEnabled]);
 
           const loadData = () => {
             try {
@@ -334,7 +467,7 @@
 
           const contarPendientes = () => {
             try {
-              const pendientes = localStorage.getItem('registros-pendientes');
+              const pendientes = localStorage.getItem('registros-pendientes-firebase');
               if (pendientes) {
                 const lista = JSON.parse(pendientes);
                 setPendingSyncCount(lista.length);
@@ -346,70 +479,32 @@
             }
           };
 
-          const sincronizarPendientes = async () => {
-            if (!navigator.onLine) {
-              return;
-            }
-
-            try {
-              const pendientes = localStorage.getItem('registros-pendientes');
-              if (!pendientes) return;
-
-              const lista = JSON.parse(pendientes);
-              if (lista.length === 0) return;
-
-              setSyncStatus('Sincronizando...');
-
-              const response = await fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(lista)
-              });
-
-              localStorage.removeItem('registros-pendientes');
-              setPendingSyncCount(0);
-              setSyncStatus('✓ Sincronizado con Google Sheets');
-              setTimeout(() => setSyncStatus(''), 3000);
-
-            } catch (err) {
-              console.error('Error sincronizando:', err);
-              setSyncStatus('Error al sincronizar');
-              setTimeout(() => setSyncStatus(''), 3000);
-            }
-          };
-
-          const guardarRegistroLocal = (registro) => {
+          const guardarRegistroLocal = async (registro) => {
             try {
               const hoy = registro.fecha.split('T')[0];
               
+              // Guardar en localStorage
               const registrosStorage = localStorage.getItem(`registros-${hoy}`);
               const registrosActuales = registrosStorage ? JSON.parse(registrosStorage) : [];
               registrosActuales.push(registro);
               localStorage.setItem(`registros-${hoy}`, JSON.stringify(registrosActuales));
 
-              const pendientes = localStorage.getItem('registros-pendientes');
-              const listaPendientes = pendientes ? JSON.parse(pendientes) : [];
-              
-              const registroParaSync = {
-                id: registro.id,
-                local: registro.local,
-                inquilino: registro.inquilino,
-                lectura: registro.lectura,
-                guardia: registro.guardia,
-                fecha: registro.fecha,
-                username: registro.username,
-                foto: registro.foto ? true : false
-              };
-              
-              listaPendientes.push(registroParaSync);
-              localStorage.setItem('registros-pendientes', JSON.stringify(listaPendientes));
-              setPendingSyncCount(listaPendientes.length);
+              // Guardar en pendientes para Firebase
+              const pendientesFirebase = localStorage.getItem('registros-pendientes-firebase');
+              const listaPendientesFirebase = pendientesFirebase ? JSON.parse(pendientesFirebase) : [];
+              listaPendientesFirebase.push(registro);
+              localStorage.setItem('registros-pendientes-firebase', JSON.stringify(listaPendientesFirebase));
+              setPendingSyncCount(listaPendientesFirebase.length);
 
-              if (navigator.onLine) {
-                setTimeout(() => sincronizarPendientes(), 500);
+              // Intentar subir inmediatamente si hay conexión
+              if (navigator.onLine && syncEnabled) {
+                const subido = await subirRegistrosAFirebase([registro]);
+                if (subido) {
+                  // Eliminar de pendientes si se subió correctamente
+                  const nuevosPendientes = listaPendientesFirebase.filter(p => p.id !== registro.id);
+                  localStorage.setItem('registros-pendientes-firebase', JSON.stringify(nuevosPendientes));
+                  setPendingSyncCount(nuevosPendientes.length);
+                }
               }
 
               return true;
@@ -556,10 +651,12 @@
 
           const exportarExcel = () => {
             const hoy = new Date().toISOString().split('T')[0];
+            const registrosParaExportar = registrosRemotos.length > 0 ? registrosRemotos : 
+              registros.filter(r => r.fecha.split('T')[0] === hoy);
             
             let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
             
-            const registrosOrdenados = [...registros].sort((a, b) => {
+            const registrosOrdenados = [...registrosParaExportar].sort((a, b) => {
               const getNumero = (local) => {
                 const match = String(local).match(/\d+/);
                 return match ? parseInt(match[0]) : 9999;
@@ -695,7 +792,7 @@
 
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
                     <p className="font-semibold mb-1">💡 Modo Offline Habilitado</p>
-                    <p>Esta app funciona sin internet. Los datos se sincronizan automáticamente cuando hay conexión.</p>
+                    <p>Esta app funciona sin internet. Los datos se sincronizan automáticamente con la nube cuando hay conexión.</p>
                   </div>
                 </div>
               </div>
@@ -705,7 +802,8 @@
           if (view === 'admin') {
             const progreso = calcularProgreso();
             const hoy = new Date().toISOString().split('T')[0];
-            const registrosHoy = registros.filter(r => r.fecha.split('T')[0] === hoy);
+            const registrosParaMostrar = registrosRemotos.length > 0 ? registrosRemotos : 
+              registros.filter(r => r.fecha.split('T')[0] === hoy);
 
             return (
               <div className="min-h-screen bg-gray-50 p-4">
@@ -715,17 +813,23 @@
                       <div>
                         <h1 className="text-2xl font-bold text-gray-800">Panel Administrativo</h1>
                         <p className="text-gray-600">Bienvenido, {user.nombre}</p>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className={`flex items-center gap-1 text-sm ${isOnline ? 'text-green-600' : 'text-orange-600'}`}>
+                            {isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+                            {isOnline ? 'Conectado' : 'Sin conexión'}
+                          </span>
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={syncEnabled}
+                              onChange={(e) => setSyncEnabled(e.target.checked)}
+                              className="rounded"
+                            />
+                            Sincronización en la nube
+                          </label>
+                        </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        {isOnline ? (
-                          <span className="flex items-center gap-1 text-green-600 text-sm">
-                            <Wifi className="w-4 h-4" />
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-orange-600 text-sm">
-                            <WifiOff className="w-4 h-4" />
-                          </span>
-                        )}
                         <button
                           onClick={() => { setUser(null); setView('login'); }}
                           className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
@@ -752,7 +856,7 @@
                             </span>
                           </div>
                           <button
-                            onClick={sincronizarPendientes}
+                            onClick={sincronizarConFirebase}
                             disabled={!isOnline}
                             className="flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white rounded-lg transition-colors text-sm"
                           >
@@ -763,7 +867,7 @@
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                       <div className="bg-blue-50 p-4 rounded-lg">
                         <div className="flex items-center gap-3">
                           <Calendar className="w-8 h-8 text-blue-600" />
@@ -779,7 +883,7 @@
                           <CheckCircle className="w-8 h-8 text-green-600" />
                           <div>
                             <p className="text-sm text-gray-600">Registrados Hoy</p>
-                            <p className="text-xl font-bold text-gray-800">{progreso.completados} / {progreso.total}</p>
+                            <p className="text-xl font-bold text-gray-800">{registrosParaMostrar.length}</p>
                           </div>
                         </div>
                       </div>
@@ -788,41 +892,59 @@
                         <div className="flex items-center gap-3">
                           <Clock className="w-8 h-8 text-purple-600" />
                           <div>
-                            <p className="text-sm text-gray-600">Progreso</p>
-                            <p className="text-xl font-bold text-gray-800">{progreso.porcentaje}%</p>
+                            <p className="text-sm text-gray-600">Fuente</p>
+                            <p className="text-xl font-bold text-gray-800">
+                              {registrosRemotos.length > 0 ? 'Nube' : 'Local'}
+                            </p>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="mb-4">
-                      <div className="w-full bg-gray-200 rounded-full h-4">
-                        <div
-                          className="bg-blue-600 h-4 rounded-full transition-all duration-500"
-                          style={{ width: `${progreso.porcentaje}%` }}
-                        ></div>
+                      <div className="bg-orange-50 p-4 rounded-lg">
+                        <button
+                          onClick={() => obtenerRegistrosDeFirebase()}
+                          disabled={!isOnline}
+                          className="w-full flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Actualizar Datos
+                        </button>
                       </div>
                     </div>
 
-                    <button
-                      onClick={exportarExcel}
-                      disabled={registrosHoy.length === 0}
-                      className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors font-semibold"
-                    >
-                      <Download className="w-5 h-5" />
-                      Exportar a Excel ({registrosHoy.length} registros)
-                    </button>
+                    <div className="flex gap-4 mb-6">
+                      <button
+                        onClick={exportarExcel}
+                        disabled={registrosParaMostrar.length === 0}
+                        className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors font-semibold"
+                      >
+                        <Download className="w-5 h-5" />
+                        Exportar a Excel ({registrosParaMostrar.length} registros)
+                      </button>
+                      
+                      <button
+                        onClick={sincronizarConFirebase}
+                        disabled={!isOnline}
+                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors font-semibold"
+                      >
+                        <CloudUpload className="w-5 h-5" />
+                        Forzar Sincronización
+                      </button>
+                    </div>
                     
-                    {registrosHoy.length > 0 && (
+                    {registrosParaMostrar.length > 0 && (
                       <p className="text-sm text-gray-600 mt-2">
-                        El archivo se descargará con todas las columnas organizadas para abrir en Excel. 
-                        Los datos también están en Google Sheets.
+                        {registrosRemotos.length > 0 
+                          ? '✓ Viendo datos en tiempo real desde la nube' 
+                          : '⚠ Viendo datos locales (sin conexión a la nube)'}
                       </p>
                     )}
                   </div>
 
                   <div className="bg-white rounded-lg shadow-lg p-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">Registros de Hoy</h2>
+                    <h2 className="text-xl font-bold text-gray-800 mb-4">
+                      Registros de Hoy {registrosRemotos.length > 0 && '(En Tiempo Real)'}
+                    </h2>
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-gray-50">
@@ -832,18 +954,19 @@
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Lectura</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Hora</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Guardia</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Fuente</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Foto</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {registrosHoy.length === 0 ? (
+                          {registrosParaMostrar.length === 0 ? (
                             <tr>
-                              <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
+                              <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
                                 No hay registros para hoy
                               </td>
                             </tr>
                           ) : (
-                            registrosHoy
+                            registrosParaMostrar
                               .sort((a, b) => {
                                 const getNumero = (local) => {
                                   const match = String(local).match(/\d+/);
@@ -860,6 +983,13 @@
                                     {new Date(r.fecha).toLocaleTimeString()}
                                   </td>
                                   <td className="px-4 py-3 text-sm text-gray-700">{r.guardia}</td>
+                                  <td className="px-4 py-3 text-sm">
+                                    <span className={`px-2 py-1 rounded-full text-xs ${
+                                      r.sincronizado ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                      {r.sincronizado ? 'Nube' : 'Local'}
+                                    </span>
+                                  </td>
                                   <td className="px-4 py-3">
                                     {r.foto ? (
                                       <img src={r.foto} alt="Medidor" className="w-16 h-16 object-cover rounded cursor-pointer" 
@@ -983,10 +1113,9 @@
                             String(r.local) === String(local.numero) && 
                             r.fecha.split('T')[0] === hoy
                           );
-                          const etiqueta = local.grupo ? `${local.numero} (Medidor Compartido)` : local.numero;
                           return (
                             <option key={local.numero} value={local.numero} disabled={yaRegistrado}>
-                              {etiqueta} - {local.inquilino} {yaRegistrado ? '✓' : ''}
+                              {local.numero} - {local.inquilino} {yaRegistrado ? '✓' : ''}
                               {local.ultimaLectura > 0 ? ` (${local.ultimaLectura} m³)` : ''}
                             </option>
                           );
@@ -1084,6 +1213,3 @@
     </script>
 </body>
 </html>
-
-
-
