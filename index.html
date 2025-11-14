@@ -8,7 +8,8 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Reemplazar Tailwind CDN por una versión estable -->
+    <script src="https://cdn.tailwindcss.com/3.3.0"></script>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -33,12 +34,15 @@
 
         // Inicializar Firebase
         let database;
+        let firebaseInitialized = false;
         try {
             const app = firebase.initializeApp(firebaseConfig);
             database = firebase.database();
+            firebaseInitialized = true;
             console.log('Firebase inicializado correctamente');
         } catch (error) {
             console.error('Error inicializando Firebase:', error);
+            firebaseInitialized = false;
         }
 
         // Iconos (se mantienen igual)
@@ -286,7 +290,9 @@
 
           useEffect(() => {
             loadData();
-            setupFirebaseListeners();
+            if (firebaseInitialized) {
+              setupFirebaseListeners();
+            }
             
             const handleOnline = () => {
               setIsOnline(true);
@@ -308,7 +314,7 @@
           }, []);
 
           const setupFirebaseListeners = () => {
-            if (!database) {
+            if (!firebaseInitialized || !database) {
               setFirebaseError('Firebase no está inicializado');
               return;
             }
@@ -374,7 +380,7 @@
           };
 
           const guardarRegistroFirebase = async (registro) => {
-            if (!database) {
+            if (!firebaseInitialized || !database) {
               throw new Error('Firebase no está disponible');
             }
 
@@ -390,7 +396,7 @@
 
           const guardarRegistroLocal = (registro) => {
             try {
-              const hoy = registro.fecha.split('T')[0];
+              const hoy = new Date().toISOString().split('T')[0];
               const registrosStorage = localStorage.getItem(`registros-${hoy}`);
               const registrosActuales = registrosStorage ? JSON.parse(registrosStorage) : [];
               registrosActuales.push(registro);
@@ -410,7 +416,7 @@
           };
 
           const sincronizarPendientes = async () => {
-            if (!database || !isOnline) return;
+            if (!firebaseInitialized || !database || !isOnline) return;
 
             try {
               const pendientes = localStorage.getItem('registros-pendientes');
@@ -498,10 +504,10 @@
             }
 
             const hoy = new Date().toISOString().split('T')[0];
-            const yaRegistrado = registros.find(r => 
-              String(r.local) === String(selectedLocal) && 
-              r.fecha.split('T')[0] === hoy
-            );
+            const yaRegistrado = registros.find(r => {
+              if (!r.fecha) return false;
+              return String(r.local) === String(selectedLocal) && r.fecha.split('T')[0] === hoy;
+            });
             if (yaRegistrado) return 'Este local ya fue registrado hoy';
 
             return null;
@@ -538,7 +544,7 @@
               let guardado = false;
               
               // Intentar guardar en Firebase primero
-              if (database && isOnline) {
+              if (firebaseInitialized && database && isOnline) {
                 try {
                   guardado = await guardarRegistroFirebase(nuevoRegistro);
                 } catch (firebaseError) {
@@ -577,7 +583,7 @@
               if (fileInput) fileInput.value = '';
 
               // Sincronizar pendientes si estamos online
-              if (isOnline) {
+              if (isOnline && firebaseInitialized) {
                 setTimeout(() => sincronizarPendientes(), 1000);
               }
 
@@ -590,7 +596,7 @@
 
           const exportarExcel = () => {
             const hoy = new Date().toISOString().split('T')[0];
-            const registrosHoy = registros.filter(r => r.fecha.split('T')[0] === hoy);
+            const registrosHoy = registros.filter(r => r.fecha && r.fecha.split('T')[0] === hoy);
             
             let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
             
@@ -603,7 +609,7 @@
             });
             
             registrosOrdenados.forEach(r => {
-              const fecha = new Date(r.fecha);
+              const fecha = r.fecha ? new Date(r.fecha) : new Date();
               const fechaStr = fecha.toLocaleDateString('es-EC');
               const horaStr = fecha.toLocaleTimeString('es-EC');
               const tieneFoto = r.foto ? 'Sí' : 'No';
@@ -629,11 +635,11 @@
 
           const calcularProgreso = () => {
             const hoy = new Date().toISOString().split('T')[0];
-            const registrosHoy = registros.filter(r => r.fecha.split('T')[0] === hoy);
+            const registrosHoy = registros.filter(r => r.fecha && r.fecha.split('T')[0] === hoy);
             return {
               completados: registrosHoy.length,
               total: locales.length,
-              porcentaje: Math.round((registrosHoy.length / locales.length) * 100)
+              porcentaje: locales.length > 0 ? Math.round((registrosHoy.length / locales.length) * 100) : 0
             };
           };
 
@@ -656,7 +662,7 @@
                       {isOnline ? (
                         <span className="flex items-center gap-1 text-green-600 text-sm">
                           <Wifi className="w-4 h-4" />
-                          {database ? 'Conectado a Firebase' : 'Conectado (Modo Local)'}
+                          {firebaseInitialized ? 'Conectado a Firebase' : 'Conectado (Modo Local)'}
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-orange-600 text-sm">
@@ -733,7 +739,7 @@
                     <p className="mt-2"><strong>Admin:</strong> admin (contraseña: admin123)</p>
                   </div>
 
-                  {!database && (
+                  {!firebaseInitialized && (
                     <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
                       <p className="font-semibold mb-1">⚠️ Modo Local Activado</p>
                       <p>Firebase no está disponible. Los datos se guardarán localmente.</p>
@@ -747,7 +753,7 @@
           if (view === 'admin') {
             const progreso = calcularProgreso();
             const hoy = new Date().toISOString().split('T')[0];
-            const registrosHoy = registros.filter(r => r.fecha.split('T')[0] === hoy);
+            const registrosHoy = registros.filter(r => r.fecha && r.fecha.split('T')[0] === hoy);
 
             return (
               <div className="min-h-screen bg-gray-50 p-4">
@@ -762,7 +768,7 @@
                         {isOnline ? (
                           <span className="flex items-center gap-1 text-green-600 text-sm">
                             <Wifi className="w-4 h-4" />
-                            {database ? 'Firebase' : 'Local'}
+                            {firebaseInitialized ? 'Firebase' : 'Local'}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-orange-600 text-sm">
@@ -843,7 +849,7 @@
                         Exportar a Excel ({registrosHoy.length} registros)
                       </button>
 
-                      {!database && isOnline && (
+                      {!firebaseInitialized && isOnline && (
                         <button
                           onClick={sincronizarPendientes}
                           className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold"
@@ -864,7 +870,7 @@
                   <div className="bg-white rounded-lg shadow-lg p-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-4">
                       Registros de Hoy 
-                      {database ? ' (Tiempo Real)' : ' (Modo Local)'}
+                      {firebaseInitialized ? ' (Tiempo Real)' : ' (Modo Local)'}
                     </h2>
                     <div className="overflow-x-auto">
                       <table className="w-full">
@@ -900,7 +906,7 @@
                                   <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
                                   <td className="px-4 py-3 text-sm text-gray-700">{r.lectura} m³</td>
                                   <td className="px-4 py-3 text-sm text-gray-700">
-                                    {new Date(r.fecha).toLocaleTimeString()}
+                                    {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}
                                   </td>
                                   <td className="px-4 py-3 text-sm text-gray-700">{r.guardia}</td>
                                   <td className="px-4 py-3">
@@ -938,7 +944,7 @@
                       {isOnline ? (
                         <span className="flex items-center gap-1 text-green-600 text-sm">
                           <Wifi className="w-4 h-4" />
-                          {database ? 'Firebase' : 'Local'}
+                          {firebaseInitialized ? 'Firebase' : 'Local'}
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-orange-600 text-sm">
@@ -1023,7 +1029,7 @@
                           const hoy = new Date().toISOString().split('T')[0];
                           const yaRegistrado = registros.find(r => 
                             String(r.local) === String(local.numero) && 
-                            r.fecha.split('T')[0] === hoy
+                            r.fecha && r.fecha.split('T')[0] === hoy
                           );
                           const etiqueta = local.grupo ? `${local.numero} (Medidor Compartido)` : local.numero;
                           return (
@@ -1102,17 +1108,17 @@
                   <h2 className="text-lg font-bold text-gray-800 mb-4">Mis Registros de Hoy</h2>
                   <div className="space-y-3">
                     {registros
-                      .filter(r => r.username === user.username && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0])
+                      .filter(r => r.username === user.username && r.fecha && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0])
                       .map(r => (
                         <div key={r.firebaseId || r.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
                             <p className="font-medium text-gray-800">{r.local} - {r.inquilino}</p>
-                            <p className="text-sm text-gray-600">{r.lectura} m³ - {new Date(r.fecha).toLocaleTimeString()}</p>
+                            <p className="text-sm text-gray-600">{r.lectura} m³ - {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}</p>
                           </div>
                           <CheckCircle className="w-6 h-6 text-green-500" />
                         </div>
                       ))}
-                    {registros.filter(r => r.username === user.username && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0]).length === 0 && (
+                    {registros.filter(r => r.username === user.username && r.fecha && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0]).length === 0 && (
                       <p className="text-center text-gray-500 py-4">No has registrado ningún local hoy</p>
                     )}
                   </div>
@@ -1126,5 +1132,4 @@
     </script>
 </body>
 </html>
-
 
