@@ -9,7 +9,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Agregar Firebase -->
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
@@ -32,10 +32,16 @@
         };
 
         // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        let database;
+        try {
+            const app = firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            console.log('Firebase inicializado correctamente');
+        } catch (error) {
+            console.error('Error inicializando Firebase:', error);
+        }
 
-        // Iconos (mantener los mismos iconos que tenías)
+        // Iconos (se mantienen igual)
         const Camera = ({ className }) => (
             <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -136,8 +142,9 @@
           const [searchTerm, setSearchTerm] = useState('');
           const [isOnline, setIsOnline] = useState(navigator.onLine);
           const [syncStatus, setSyncStatus] = useState('');
+          const [firebaseError, setFirebaseError] = useState('');
 
-          // Datos de locales (mantener tu array original)
+          // Datos de locales (tu array completo)
           const localesData = [
             {numero: "1-2-3-4-5", inquilino: "Ancla Izquierda", estado: "Vacía", grupo: true},
             {numero: 6, inquilino: "Elizabeth Godoy"},
@@ -283,9 +290,13 @@
             
             const handleOnline = () => {
               setIsOnline(true);
-              sincronizarPendientes();
+              setSyncStatus('Conectado a Firebase');
+              setTimeout(() => setSyncStatus(''), 3000);
             };
-            const handleOffline = () => setIsOnline(false);
+            const handleOffline = () => {
+              setIsOnline(false);
+              setSyncStatus('Modo offline - Los datos se guardarán localmente');
+            };
             
             window.addEventListener('online', handleOnline);
             window.addEventListener('offline', handleOffline);
@@ -297,32 +308,36 @@
           }, []);
 
           const setupFirebaseListeners = () => {
-            // Escuchar cambios en los registros
-            const registrosRef = database.ref('registros');
-            registrosRef.on('value', (snapshot) => {
-              const data = snapshot.val();
-              if (data) {
-                const registrosArray = Object.values(data);
-                setRegistros(registrosArray);
-              } else {
-                setRegistros([]);
-              }
-            });
+            if (!database) {
+              setFirebaseError('Firebase no está inicializado');
+              return;
+            }
 
-            // Escuchar cambios en las últimas lecturas de locales
-            const localesRef = database.ref('ultimasLecturas');
-            localesRef.on('value', (snapshot) => {
-              const data = snapshot.val();
-              if (data) {
-                setLocales(prevLocales => 
-                  prevLocales.map(local => ({
-                    ...local,
-                    ultimaLectura: data[local.numero]?.lectura || 0,
-                    fechaUltimaLectura: data[local.numero]?.fecha || null
-                  }))
-                );
-              }
-            });
+            try {
+              // Escuchar cambios en los registros
+              const registrosRef = database.ref('registros');
+              registrosRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                  // Convertir objeto de Firebase a array
+                  const registrosArray = Object.keys(data).map(key => ({
+                    firebaseId: key,
+                    ...data[key]
+                  }));
+                  setRegistros(registrosArray);
+                  setFirebaseError('');
+                } else {
+                  setRegistros([]);
+                }
+              }, (error) => {
+                console.error('Error escuchando registros:', error);
+                setFirebaseError('Error conectando a Firebase: ' + error.message);
+              });
+
+            } catch (error) {
+              console.error('Error configurando listeners:', error);
+              setFirebaseError('Error de conexión con Firebase');
+            }
           };
 
           const loadData = () => {
@@ -332,7 +347,22 @@
                 ultimaLectura: 0,
                 fechaUltimaLectura: null
               }));
+
+              // Cargar últimas lecturas desde localStorage como respaldo
+              const localesStorage = localStorage.getItem('locales-gran-manzana');
+              if (localesStorage) {
+                const savedLocales = JSON.parse(localesStorage);
+                savedLocales.forEach(saved => {
+                  const local = initialLocales.find(l => String(l.numero) === String(saved.numero));
+                  if (local && saved.ultimaLectura) {
+                    local.ultimaLectura = saved.ultimaLectura;
+                    local.fechaUltimaLectura = saved.fechaUltimaLectura;
+                  }
+                });
+              }
+
               setLocales(initialLocales);
+
             } catch (err) {
               console.error('Error cargando datos:', err);
               setLocales(localesData.map(l => ({
@@ -344,23 +374,65 @@
           };
 
           const guardarRegistroFirebase = async (registro) => {
+            if (!database) {
+              throw new Error('Firebase no está disponible');
+            }
+
             try {
-              // Guardar registro principal
               const registroRef = database.ref('registros').push();
               await registroRef.set(registro);
+              return true;
+            } catch (error) {
+              console.error('Error guardando en Firebase:', error);
+              throw error;
+            }
+          };
 
-              // Actualizar última lectura del local
-              const ultimaLecturaRef = database.ref(`ultimasLecturas/${registro.local}`);
-              await ultimaLecturaRef.set({
-                lectura: registro.lectura,
-                fecha: registro.fecha,
-                guardia: registro.guardia
-              });
+          const guardarRegistroLocal = (registro) => {
+            try {
+              const hoy = registro.fecha.split('T')[0];
+              const registrosStorage = localStorage.getItem(`registros-${hoy}`);
+              const registrosActuales = registrosStorage ? JSON.parse(registrosStorage) : [];
+              registrosActuales.push(registro);
+              localStorage.setItem(`registros-${hoy}`, JSON.stringify(registrosActuales));
+
+              // Guardar también en localStorage de respaldo
+              const pendientes = localStorage.getItem('registros-pendientes');
+              const listaPendientes = pendientes ? JSON.parse(pendientes) : [];
+              listaPendientes.push(registro);
+              localStorage.setItem('registros-pendientes', JSON.stringify(listaPendientes));
 
               return true;
             } catch (err) {
-              console.error('Error guardando en Firebase:', err);
+              console.error('Error guardando local:', err);
               return false;
+            }
+          };
+
+          const sincronizarPendientes = async () => {
+            if (!database || !isOnline) return;
+
+            try {
+              const pendientes = localStorage.getItem('registros-pendientes');
+              if (!pendientes) return;
+
+              const lista = JSON.parse(pendientes);
+              if (lista.length === 0) return;
+
+              setSyncStatus('Sincronizando registros pendientes...');
+
+              for (const registro of lista) {
+                await guardarRegistroFirebase(registro);
+              }
+
+              localStorage.removeItem('registros-pendientes');
+              setSyncStatus('✓ Todos los registros sincronizados');
+              setTimeout(() => setSyncStatus(''), 3000);
+
+            } catch (err) {
+              console.error('Error sincronizando:', err);
+              setSyncStatus('Error al sincronizar');
+              setTimeout(() => setSyncStatus(''), 3000);
             }
           };
 
@@ -463,13 +535,37 @@
                 username: user.username
               };
 
-              const guardado = await guardarRegistroFirebase(nuevoRegistro);
+              let guardado = false;
+              
+              // Intentar guardar en Firebase primero
+              if (database && isOnline) {
+                try {
+                  guardado = await guardarRegistroFirebase(nuevoRegistro);
+                } catch (firebaseError) {
+                  console.warn('Error con Firebase, guardando localmente:', firebaseError);
+                  guardado = guardarRegistroLocal(nuevoRegistro);
+                }
+              } else {
+                // Si no hay Firebase o no hay internet, guardar localmente
+                guardado = guardarRegistroLocal(nuevoRegistro);
+              }
               
               if (!guardado) {
-                setError('Error al guardar el registro en la base de datos');
+                setError('Error al guardar el registro');
                 setLoading(false);
                 return;
               }
+
+              // Actualizar última lectura en el estado local
+              const localesActualizados = locales.map(l => 
+                String(l.numero) === String(selectedLocal)
+                  ? { ...l, ultimaLectura: lecturaNum, fechaUltimaLectura: ahora }
+                  : l
+              );
+              
+              // Guardar en localStorage como respaldo
+              localStorage.setItem('locales-gran-manzana', JSON.stringify(localesActualizados));
+              setLocales(localesActualizados);
 
               setSuccess(`✓ Local ${selectedLocal} - ${localData.inquilino} registrado correctamente`);
               setSelectedLocal('');
@@ -479,6 +575,11 @@
               
               const fileInput = document.getElementById('foto-input');
               if (fileInput) fileInput.value = '';
+
+              // Sincronizar pendientes si estamos online
+              if (isOnline) {
+                setTimeout(() => sincronizarPendientes(), 1000);
+              }
 
             } catch (err) {
               setError('Error al guardar el registro: ' + err.message);
@@ -544,9 +645,6 @@
             );
           });
 
-          // Resto del código (login, admin, registro) se mantiene similar pero usando los datos de Firebase
-          // ... (mantener el resto de tu código de renderizado)
-
           if (!user) {
             return (
               <div className="min-h-screen bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center p-4">
@@ -558,7 +656,7 @@
                       {isOnline ? (
                         <span className="flex items-center gap-1 text-green-600 text-sm">
                           <Wifi className="w-4 h-4" />
-                          Conectado a Firebase
+                          {database ? 'Conectado a Firebase' : 'Conectado (Modo Local)'}
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-orange-600 text-sm">
@@ -567,9 +665,13 @@
                         </span>
                       )}
                     </div>
+                    {firebaseError && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                        {firebaseError}
+                      </div>
+                    )}
                   </div>
                   
-                  {/* Mantener el formulario de login igual */}
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Usuario</label>
@@ -631,10 +733,12 @@
                     <p className="mt-2"><strong>Admin:</strong> admin (contraseña: admin123)</p>
                   </div>
 
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
-                    <p className="font-semibold mb-1">🔥 Conectado a Firebase</p>
-                    <p>Los datos se sincronizan en tiempo real entre todos los dispositivos.</p>
-                  </div>
+                  {!database && (
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
+                      <p className="font-semibold mb-1">⚠️ Modo Local Activado</p>
+                      <p>Firebase no está disponible. Los datos se guardarán localmente.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -658,12 +762,12 @@
                         {isOnline ? (
                           <span className="flex items-center gap-1 text-green-600 text-sm">
                             <Wifi className="w-4 h-4" />
-                            Firebase Conectado
+                            {database ? 'Firebase' : 'Local'}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-orange-600 text-sm">
                             <WifiOff className="w-4 h-4" />
-                            Sin conexión
+                            Offline
                           </span>
                         )}
                         <button
@@ -675,6 +779,18 @@
                         </button>
                       </div>
                     </div>
+
+                    {syncStatus && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                        {syncStatus}
+                      </div>
+                    )}
+
+                    {firebaseError && (
+                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+                        {firebaseError}
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                       <div className="bg-blue-50 p-4 rounded-lg">
@@ -717,14 +833,26 @@
                       </div>
                     </div>
 
-                    <button
-                      onClick={exportarExcel}
-                      disabled={registrosHoy.length === 0}
-                      className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors font-semibold"
-                    >
-                      <Download className="w-5 h-5" />
-                      Exportar a Excel ({registrosHoy.length} registros)
-                    </button>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={exportarExcel}
+                        disabled={registrosHoy.length === 0}
+                        className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors font-semibold"
+                      >
+                        <Download className="w-5 h-5" />
+                        Exportar a Excel ({registrosHoy.length} registros)
+                      </button>
+
+                      {!database && isOnline && (
+                        <button
+                          onClick={sincronizarPendientes}
+                          className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold"
+                        >
+                          <CloudUpload className="w-5 h-5" />
+                          Sincronizar con Firebase
+                        </button>
+                      )}
+                    </div>
                     
                     {registrosHoy.length > 0 && (
                       <p className="text-sm text-gray-600 mt-2">
@@ -734,7 +862,10 @@
                   </div>
 
                   <div className="bg-white rounded-lg shadow-lg p-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">Registros de Hoy (Tiempo Real)</h2>
+                    <h2 className="text-xl font-bold text-gray-800 mb-4">
+                      Registros de Hoy 
+                      {database ? ' (Tiempo Real)' : ' (Modo Local)'}
+                    </h2>
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-gray-50">
@@ -764,7 +895,7 @@
                                 return getNumero(a.local) - getNumero(b.local);
                               })
                               .map(r => (
-                                <tr key={r.id} className="hover:bg-gray-50">
+                                <tr key={r.firebaseId || r.id} className="hover:bg-gray-50">
                                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
                                   <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
                                   <td className="px-4 py-3 text-sm text-gray-700">{r.lectura} m³</td>
@@ -807,7 +938,7 @@
                       {isOnline ? (
                         <span className="flex items-center gap-1 text-green-600 text-sm">
                           <Wifi className="w-4 h-4" />
-                          Firebase
+                          {database ? 'Firebase' : 'Local'}
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-orange-600 text-sm">
@@ -824,6 +955,18 @@
                       </button>
                     </div>
                   </div>
+
+                  {syncStatus && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                      {syncStatus}
+                    </div>
+                  )}
+
+                  {firebaseError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+                      {firebaseError}
+                    </div>
+                  )}
 
                   <div className="bg-blue-50 p-4 rounded-lg mb-6">
                     <p className="text-sm text-gray-700 mb-2">Progreso de hoy: {progreso.completados} / {progreso.total} locales</p>
@@ -961,7 +1104,7 @@
                     {registros
                       .filter(r => r.username === user.username && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0])
                       .map(r => (
-                        <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div key={r.firebaseId || r.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
                             <p className="font-medium text-gray-800">{r.local} - {r.inquilino}</p>
                             <p className="text-sm text-gray-600">{r.lectura} m³ - {new Date(r.fecha).toLocaleTimeString()}</p>
@@ -983,4 +1126,5 @@
     </script>
 </body>
 </html>
+
 
