@@ -8,7 +8,6 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Reemplazar Tailwind CDN por una versión estable -->
     <script src="https://cdn.tailwindcss.com/3.3.0"></script>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -18,6 +17,12 @@
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+        }
+        .logo-text {
+            background: linear-gradient(135deg, #1e40af 0%, #dc2626 50%, #16a34a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
     </style>
 </head>
@@ -45,7 +50,7 @@
             firebaseInitialized = false;
         }
 
-        // Iconos (se mantienen igual)
+        // Iconos actualizados
         const Camera = ({ className }) => (
             <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -129,6 +134,18 @@
             </svg>
         );
 
+        const Edit = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+        );
+
+        const Trash = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+        );
+
         const MedidorApp = () => {
           const [user, setUser] = useState(null);
           const [view, setView] = useState('login');
@@ -147,8 +164,10 @@
           const [isOnline, setIsOnline] = useState(navigator.onLine);
           const [syncStatus, setSyncStatus] = useState('');
           const [firebaseError, setFirebaseError] = useState('');
+          const [editandoRegistro, setEditandoRegistro] = useState(null);
+          const [editLectura, setEditLectura] = useState('');
 
-          // Datos de locales (tu array completo)
+          // Datos de locales
           const localesData = [
             {numero: "1-2-3-4-5", inquilino: "Ancla Izquierda", estado: "Vacía", grupo: true},
             {numero: 6, inquilino: "Elizabeth Godoy"},
@@ -320,12 +339,10 @@
             }
 
             try {
-              // Escuchar cambios en los registros
               const registrosRef = database.ref('registros');
               registrosRef.on('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                  // Convertir objeto de Firebase a array
                   const registrosArray = Object.keys(data).map(key => ({
                     firebaseId: key,
                     ...data[key]
@@ -354,7 +371,6 @@
                 fechaUltimaLectura: null
               }));
 
-              // Cargar últimas lecturas desde localStorage como respaldo
               const localesStorage = localStorage.getItem('locales-gran-manzana');
               if (localesStorage) {
                 const savedLocales = JSON.parse(localesStorage);
@@ -394,51 +410,31 @@
             }
           };
 
-          const guardarRegistroLocal = (registro) => {
+          const actualizarRegistroFirebase = async (firebaseId, nuevosDatos) => {
+            if (!firebaseInitialized || !database) {
+              throw new Error('Firebase no está disponible');
+            }
+
             try {
-              const hoy = new Date().toISOString().split('T')[0];
-              const registrosStorage = localStorage.getItem(`registros-${hoy}`);
-              const registrosActuales = registrosStorage ? JSON.parse(registrosStorage) : [];
-              registrosActuales.push(registro);
-              localStorage.setItem(`registros-${hoy}`, JSON.stringify(registrosActuales));
-
-              // Guardar también en localStorage de respaldo
-              const pendientes = localStorage.getItem('registros-pendientes');
-              const listaPendientes = pendientes ? JSON.parse(pendientes) : [];
-              listaPendientes.push(registro);
-              localStorage.setItem('registros-pendientes', JSON.stringify(listaPendientes));
-
+              await database.ref(`registros/${firebaseId}`).update(nuevosDatos);
               return true;
-            } catch (err) {
-              console.error('Error guardando local:', err);
-              return false;
+            } catch (error) {
+              console.error('Error actualizando en Firebase:', error);
+              throw error;
             }
           };
 
-          const sincronizarPendientes = async () => {
-            if (!firebaseInitialized || !database || !isOnline) return;
+          const eliminarRegistroFirebase = async (firebaseId) => {
+            if (!firebaseInitialized || !database) {
+              throw new Error('Firebase no está disponible');
+            }
 
             try {
-              const pendientes = localStorage.getItem('registros-pendientes');
-              if (!pendientes) return;
-
-              const lista = JSON.parse(pendientes);
-              if (lista.length === 0) return;
-
-              setSyncStatus('Sincronizando registros pendientes...');
-
-              for (const registro of lista) {
-                await guardarRegistroFirebase(registro);
-              }
-
-              localStorage.removeItem('registros-pendientes');
-              setSyncStatus('✓ Todos los registros sincronizados');
-              setTimeout(() => setSyncStatus(''), 3000);
-
-            } catch (err) {
-              console.error('Error sincronizando:', err);
-              setSyncStatus('Error al sincronizar');
-              setTimeout(() => setSyncStatus(''), 3000);
+              await database.ref(`registros/${firebaseId}`).remove();
+              return true;
+            } catch (error) {
+              console.error('Error eliminando en Firebase:', error);
+              throw error;
             }
           };
 
@@ -490,12 +486,12 @@
             }
           };
 
-          const validarLectura = () => {
-            const local = locales.find(l => String(l.numero) === String(selectedLocal));
-            const lecturaNum = parseFloat(lectura);
+          const validarLectura = (lecturaValidar, localValidar) => {
+            const local = locales.find(l => String(l.numero) === String(localValidar));
+            const lecturaNum = parseFloat(lecturaValidar);
 
-            if (!selectedLocal) return 'Debe seleccionar un local';
-            if (!lectura || isNaN(lecturaNum)) return 'Debe ingresar una lectura válida';
+            if (!localValidar) return 'Debe seleccionar un local';
+            if (!lecturaValidar || isNaN(lecturaNum)) return 'Debe ingresar una lectura válida';
             if (local.ultimaLectura && lecturaNum < local.ultimaLectura) {
               return `La lectura no puede ser menor a la anterior (${local.ultimaLectura})`;
             }
@@ -506,7 +502,9 @@
             const hoy = new Date().toISOString().split('T')[0];
             const yaRegistrado = registros.find(r => {
               if (!r.fecha) return false;
-              return String(r.local) === String(selectedLocal) && r.fecha.split('T')[0] === hoy;
+              return String(r.local) === String(localValidar) && 
+                     r.fecha.split('T')[0] === hoy &&
+                     (!editandoRegistro || r.firebaseId !== editandoRegistro.firebaseId);
             });
             if (yaRegistrado) return 'Este local ya fue registrado hoy';
 
@@ -518,7 +516,7 @@
             setError('');
             setSuccess('');
 
-            const errorValidacion = validarLectura();
+            const errorValidacion = validarLectura(lectura, selectedLocal);
             if (errorValidacion) {
               setError(errorValidacion);
               setLoading(false);
@@ -543,7 +541,6 @@
 
               let guardado = false;
               
-              // Intentar guardar en Firebase primero
               if (firebaseInitialized && database && isOnline) {
                 try {
                   guardado = await guardarRegistroFirebase(nuevoRegistro);
@@ -552,7 +549,6 @@
                   guardado = guardarRegistroLocal(nuevoRegistro);
                 }
               } else {
-                // Si no hay Firebase o no hay internet, guardar localmente
                 guardado = guardarRegistroLocal(nuevoRegistro);
               }
               
@@ -562,14 +558,12 @@
                 return;
               }
 
-              // Actualizar última lectura en el estado local
               const localesActualizados = locales.map(l => 
                 String(l.numero) === String(selectedLocal)
                   ? { ...l, ultimaLectura: lecturaNum, fechaUltimaLectura: ahora }
                   : l
               );
               
-              // Guardar en localStorage como respaldo
               localStorage.setItem('locales-gran-manzana', JSON.stringify(localesActualizados));
               setLocales(localesActualizados);
 
@@ -582,13 +576,122 @@
               const fileInput = document.getElementById('foto-input');
               if (fileInput) fileInput.value = '';
 
-              // Sincronizar pendientes si estamos online
-              if (isOnline && firebaseInitialized) {
-                setTimeout(() => sincronizarPendientes(), 1000);
+            } catch (err) {
+              setError('Error al guardar el registro: ' + err.message);
+            } finally {
+              setLoading(false);
+            }
+          };
+
+          const iniciarEdicion = (registro) => {
+            setEditandoRegistro(registro);
+            setEditLectura(registro.lectura);
+          };
+
+          const cancelarEdicion = () => {
+            setEditandoRegistro(null);
+            setEditLectura('');
+          };
+
+          const guardarEdicion = async () => {
+            if (!editandoRegistro) return;
+
+            setLoading(true);
+            setError('');
+            setSuccess('');
+
+            const errorValidacion = validarLectura(editLectura, editandoRegistro.local);
+            if (errorValidacion) {
+              setError(errorValidacion);
+              setLoading(false);
+              return;
+            }
+
+            try {
+              const lecturaNum = parseFloat(editLectura);
+              const registroActualizado = {
+                ...editandoRegistro,
+                lectura: lecturaNum,
+                fecha: new Date().toISOString()
+              };
+
+              let actualizado = false;
+
+              if (firebaseInitialized && database && isOnline) {
+                try {
+                  actualizado = await actualizarRegistroFirebase(editandoRegistro.firebaseId, {
+                    lectura: lecturaNum,
+                    fecha: registroActualizado.fecha
+                  });
+                } catch (firebaseError) {
+                  console.warn('Error actualizando en Firebase:', firebaseError);
+                  // En modo offline, no podemos actualizar Firebase
+                  actualizado = true; // Marcamos como exitoso para continuar
+                }
+              } else {
+                actualizado = true; // En modo offline, consideramos exitoso
+              }
+
+              if (actualizado) {
+                setRegistros(prev => prev.map(r => 
+                  r.firebaseId === editandoRegistro.firebaseId ? registroActualizado : r
+                ));
+
+                const localesActualizados = locales.map(l => 
+                  String(l.numero) === String(editandoRegistro.local)
+                    ? { ...l, ultimaLectura: lecturaNum, fechaUltimaLectura: registroActualizado.fecha }
+                    : l
+                );
+                
+                localStorage.setItem('locales-gran-manzana', JSON.stringify(localesActualizados));
+                setLocales(localesActualizados);
+
+                setSuccess(`✓ Lectura del local ${editandoRegistro.local} actualizada correctamente`);
+                cancelarEdicion();
+              } else {
+                setError('Error al actualizar el registro');
               }
 
             } catch (err) {
-              setError('Error al guardar el registro: ' + err.message);
+              setError('Error al actualizar el registro: ' + err.message);
+            } finally {
+              setLoading(false);
+            }
+          };
+
+          const eliminarRegistro = async (registro) => {
+            if (!confirm('¿Está seguro de que desea eliminar este registro?')) {
+              return;
+            }
+
+            setLoading(true);
+            setError('');
+            setSuccess('');
+
+            try {
+              let eliminado = false;
+
+              if (firebaseInitialized && database && isOnline) {
+                try {
+                  eliminado = await eliminarRegistroFirebase(registro.firebaseId);
+                } catch (firebaseError) {
+                  console.warn('Error eliminando en Firebase:', firebaseError);
+                  // En modo offline, no podemos eliminar de Firebase
+                  eliminado = true; // Marcamos como exitoso para continuar
+                }
+              } else {
+                eliminado = true; // En modo offline, consideramos exitoso
+              }
+
+              if (eliminado) {
+                setRegistros(prev => prev.filter(r => r.firebaseId !== registro.firebaseId));
+                setSuccess(`✓ Registro del local ${registro.local} eliminado correctamente`);
+              } else {
+                setError('Error al eliminar el registro');
+              }
+
+            } catch (err) {
+              setError('Error al eliminar el registro: ' + err.message);
             } finally {
               setLoading(false);
             }
@@ -653,11 +756,16 @@
 
           if (!user) {
             return (
-              <div className="min-h-screen bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center p-4">
-                <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+              <div className="min-h-screen bg-gradient-to-br from-blue-600 to-green-600 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-200">
                   <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-800 mb-2">La Gran Manzana</h1>
-                    <p className="text-gray-600">Sistema de Registro de Medidores</p>
+                    <div className="mb-4">
+                      <h1 className="text-4xl font-bold logo-text mb-2">La Gran Manzana</h1>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p className="font-semibold">Centro Comercial</p>
+                        <p>Sistema de Registro de Medidores</p>
+                      </div>
+                    </div>
                     <div className="mt-3 flex items-center justify-center gap-2">
                       {isOnline ? (
                         <span className="flex items-center gap-1 text-green-600 text-sm">
@@ -686,7 +794,7 @@
                         value={loginUsername}
                         onChange={(e) => setLoginUsername(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                         placeholder="Ingrese su usuario"
                       />
                     </div>
@@ -698,7 +806,7 @@
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                         placeholder="Ingrese su contraseña"
                       />
                     </div>
@@ -711,14 +819,14 @@
                           value={nombreGuardia}
                           onChange={(e) => setNombreGuardia(e.target.value)}
                           onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                           placeholder="Ej: Juan Pérez"
                         />
                       </div>
                     )}
 
                     {error && (
-                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2">
+                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-2">
                         <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                         <span className="text-sm">{error}</span>
                       </div>
@@ -726,21 +834,21 @@
 
                     <button
                       onClick={handleLogin}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors"
+                      className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg"
                     >
                       Iniciar Sesión
                     </button>
                   </div>
 
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
-                    <p className="font-semibold mb-2">Usuarios:</p>
-                    <p><strong>Guardias:</strong> guardia (contraseña: 1234)</p>
+                  <div className="mt-6 p-4 bg-gray-50 rounded-xl text-sm text-gray-600">
+                    <p className="font-semibold mb-2">Credenciales de acceso:</p>
+                    <p><strong>Guardias:</strong> usuario: guardia | contraseña: 1234</p>
                     <p className="text-xs text-gray-500 mt-1">* Después de ingresar usuario y contraseña, escriba su nombre completo</p>
-                    <p className="mt-2"><strong>Admin:</strong> admin (contraseña: admin123)</p>
+                    <p className="mt-2"><strong>Admin:</strong> usuario: admin | contraseña: admin123</p>
                   </div>
 
                   {!firebaseInitialized && (
-                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-xs text-yellow-800">
                       <p className="font-semibold mb-1">⚠️ Modo Local Activado</p>
                       <p>Firebase no está disponible. Los datos se guardarán localmente.</p>
                     </div>
@@ -756,29 +864,29 @@
             const registrosHoy = registros.filter(r => r.fecha && r.fecha.split('T')[0] === hoy);
 
             return (
-              <div className="min-h-screen bg-gray-50 p-4">
+              <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-4">
                 <div className="max-w-7xl mx-auto">
-                  <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                    <div className="flex justify-between items-center mb-4">
+                  <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-gray-200">
+                    <div className="flex justify-between items-center mb-6">
                       <div>
-                        <h1 className="text-2xl font-bold text-gray-800">Panel Administrativo</h1>
-                        <p className="text-gray-600">Bienvenido, {user.nombre}</p>
+                        <h1 className="text-3xl font-bold logo-text mb-2">Panel Administrativo</h1>
+                        <p className="text-gray-600">Bienvenido, <span className="font-semibold text-green-700">{user.nombre}</span></p>
                       </div>
                       <div className="flex items-center gap-3">
                         {isOnline ? (
-                          <span className="flex items-center gap-1 text-green-600 text-sm">
+                          <span className="flex items-center gap-1 text-green-600 text-sm bg-green-50 px-3 py-1 rounded-full">
                             <Wifi className="w-4 h-4" />
                             {firebaseInitialized ? 'Firebase' : 'Local'}
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-orange-600 text-sm">
+                          <span className="flex items-center gap-1 text-orange-600 text-sm bg-orange-50 px-3 py-1 rounded-full">
                             <WifiOff className="w-4 h-4" />
                             Offline
                           </span>
                         )}
                         <button
                           onClick={() => { setUser(null); setView('login'); }}
-                          className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all transform hover:scale-105"
                         >
                           <LogOut className="w-4 h-4" />
                           Salir
@@ -787,53 +895,53 @@
                     </div>
 
                     {syncStatus && (
-                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
                         {syncStatus}
                       </div>
                     )}
 
                     {firebaseError && (
-                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
                         {firebaseError}
                       </div>
                     )}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="bg-blue-50 p-4 rounded-lg">
+                      <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-xl shadow-lg">
                         <div className="flex items-center gap-3">
-                          <Calendar className="w-8 h-8 text-blue-600" />
+                          <Calendar className="w-8 h-8 text-white" />
                           <div>
-                            <p className="text-sm text-gray-600">Fecha</p>
-                            <p className="text-xl font-bold text-gray-800">{new Date().toLocaleDateString()}</p>
+                            <p className="text-sm opacity-90">Fecha</p>
+                            <p className="text-xl font-bold">{new Date().toLocaleDateString()}</p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-4 rounded-xl shadow-lg">
                         <div className="flex items-center gap-3">
-                          <CheckCircle className="w-8 h-8 text-green-600" />
+                          <CheckCircle className="w-8 h-8 text-white" />
                           <div>
-                            <p className="text-sm text-gray-600">Registrados Hoy</p>
-                            <p className="text-xl font-bold text-gray-800">{progreso.completados} / {progreso.total}</p>
+                            <p className="text-sm opacity-90">Registrados Hoy</p>
+                            <p className="text-xl font-bold">{progreso.completados} / {progreso.total}</p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="bg-purple-50 p-4 rounded-lg">
+                      <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-4 rounded-xl shadow-lg">
                         <div className="flex items-center gap-3">
-                          <Clock className="w-8 h-8 text-purple-600" />
+                          <Clock className="w-8 h-8 text-white" />
                           <div>
-                            <p className="text-sm text-gray-600">Progreso</p>
-                            <p className="text-xl font-bold text-gray-800">{progreso.porcentaje}%</p>
+                            <p className="text-sm opacity-90">Progreso</p>
+                            <p className="text-xl font-bold">{progreso.porcentaje}%</p>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="mb-4">
+                    <div className="mb-6">
                       <div className="w-full bg-gray-200 rounded-full h-4">
                         <div
-                          className="bg-blue-600 h-4 rounded-full transition-all duration-500"
+                          className="bg-gradient-to-r from-green-500 to-blue-500 h-4 rounded-full transition-all duration-500 shadow-lg"
                           style={{ width: `${progreso.porcentaje}%` }}
                         ></div>
                       </div>
@@ -843,21 +951,11 @@
                       <button
                         onClick={exportarExcel}
                         disabled={registrosHoy.length === 0}
-                        className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors font-semibold"
+                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl transition-all transform hover:scale-105 font-semibold shadow-lg"
                       >
                         <Download className="w-5 h-5" />
                         Exportar a Excel ({registrosHoy.length} registros)
                       </button>
-
-                      {!firebaseInitialized && isOnline && (
-                        <button
-                          onClick={sincronizarPendientes}
-                          className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold"
-                        >
-                          <CloudUpload className="w-5 h-5" />
-                          Sincronizar con Firebase
-                        </button>
-                      )}
                     </div>
                     
                     {registrosHoy.length > 0 && (
@@ -867,14 +965,16 @@
                     )}
                   </div>
 
-                  <div className="bg-white rounded-lg shadow-lg p-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">
+                  <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6">
                       Registros de Hoy 
-                      {firebaseInitialized ? ' (Tiempo Real)' : ' (Modo Local)'}
+                      <span className="text-sm font-normal text-gray-600 ml-2">
+                        {firebaseInitialized ? '(Tiempo Real)' : '(Modo Local)'}
+                      </span>
                     </h2>
                     <div className="overflow-x-auto">
                       <table className="w-full">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                           <tr>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Local</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Inquilino</th>
@@ -882,12 +982,13 @@
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Hora</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Guardia</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Foto</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                           {registrosHoy.length === 0 ? (
                             <tr>
-                              <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
+                              <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
                                 No hay registros para hoy
                               </td>
                             </tr>
@@ -901,21 +1002,39 @@
                                 return getNumero(a.local) - getNumero(b.local);
                               })
                               .map(r => (
-                                <tr key={r.firebaseId || r.id} className="hover:bg-gray-50">
+                                <tr key={r.firebaseId || r.id} className="hover:bg-gray-50 transition-colors">
                                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
                                   <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">{r.lectura} m³</td>
+                                  <td className="px-4 py-3 text-sm text-gray-700 font-semibold">{r.lectura} m³</td>
                                   <td className="px-4 py-3 text-sm text-gray-700">
                                     {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}
                                   </td>
                                   <td className="px-4 py-3 text-sm text-gray-700">{r.guardia}</td>
                                   <td className="px-4 py-3">
                                     {r.foto ? (
-                                      <img src={r.foto} alt="Medidor" className="w-16 h-16 object-cover rounded cursor-pointer" 
+                                      <img src={r.foto} alt="Medidor" className="w-16 h-16 object-cover rounded-lg cursor-pointer shadow-sm" 
                                            onClick={() => window.open(r.foto, '_blank')} />
                                     ) : (
-                                      <span className="text-xs text-gray-400">Sin foto</span>
+                                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Sin foto</span>
                                     )}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => iniciarEdicion(r)}
+                                        className="flex items-center gap-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs transition-colors"
+                                      >
+                                        <Edit className="w-3 h-3" />
+                                        Editar
+                                      </button>
+                                      <button
+                                        onClick={() => eliminarRegistro(r)}
+                                        className="flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs transition-colors"
+                                      >
+                                        <Trash className="w-3 h-3" />
+                                        Eliminar
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))
@@ -925,6 +1044,50 @@
                     </div>
                   </div>
                 </div>
+
+                {/* Modal de Edición */}
+                {editandoRegistro && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-gray-200">
+                      <h3 className="text-xl font-bold text-gray-800 mb-4">Editar Lectura</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-2">Local: <span className="font-semibold">{editandoRegistro.local}</span></p>
+                          <p className="text-sm text-gray-600 mb-4">Inquilino: <span className="font-semibold">{editandoRegistro.inquilino}</span></p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nueva Lectura (m³) *
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editLectura}
+                            onChange={(e) => setEditLectura(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                            placeholder="Ej: 1234.56"
+                          />
+                        </div>
+                        <div className="flex gap-4 pt-4">
+                          <button
+                            onClick={guardarEdicion}
+                            disabled={loading}
+                            className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105"
+                          >
+                            {loading ? 'Guardando...' : 'Guardar Cambios'}
+                          </button>
+                          <button
+                            onClick={cancelarEdicion}
+                            disabled={loading}
+                            className="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           }
@@ -932,29 +1095,29 @@
           const progreso = calcularProgreso();
 
           return (
-            <div className="min-h-screen bg-gray-50 p-4">
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-4">
               <div className="max-w-2xl mx-auto">
-                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-gray-200">
                   <div className="flex justify-between items-center mb-6">
                     <div>
-                      <h1 className="text-2xl font-bold text-gray-800">Registro de Medidores</h1>
-                      <p className="text-gray-600">Hola, {user.nombre}</p>
+                      <h1 className="text-2xl font-bold logo-text mb-2">Registro de Medidores</h1>
+                      <p className="text-gray-600">Hola, <span className="font-semibold text-green-700">{user.nombre}</span></p>
                     </div>
                     <div className="flex items-center gap-3">
                       {isOnline ? (
-                        <span className="flex items-center gap-1 text-green-600 text-sm">
+                        <span className="flex items-center gap-1 text-green-600 text-sm bg-green-50 px-3 py-1 rounded-full">
                           <Wifi className="w-4 h-4" />
                           {firebaseInitialized ? 'Firebase' : 'Local'}
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-orange-600 text-sm">
+                        <span className="flex items-center gap-1 text-orange-600 text-sm bg-orange-50 px-3 py-1 rounded-full">
                           <WifiOff className="w-4 h-4" />
                           Offline
                         </span>
                       )}
                       <button
                         onClick={() => { setUser(null); setView('login'); }}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all transform hover:scale-105"
                       >
                         <LogOut className="w-4 h-4" />
                         Salir
@@ -963,36 +1126,36 @@
                   </div>
 
                   {syncStatus && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
                       {syncStatus}
                     </div>
                   )}
 
                   {firebaseError && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
                       {firebaseError}
                     </div>
                   )}
 
-                  <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                  <div className="bg-gradient-to-r from-blue-50 to-green-50 p-4 rounded-xl mb-6 border border-gray-200">
                     <p className="text-sm text-gray-700 mb-2">Progreso de hoy: {progreso.completados} / {progreso.total} locales</p>
                     <div className="w-full bg-gray-200 rounded-full h-3">
                       <div
-                        className="bg-blue-600 h-3 rounded-full transition-all duration-500"
+                        className="bg-gradient-to-r from-green-500 to-blue-500 h-3 rounded-full transition-all duration-500 shadow-lg"
                         style={{ width: `${progreso.porcentaje}%` }}
                       ></div>
                     </div>
                   </div>
 
                   {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2 mb-4">
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-2 mb-4">
                       <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                       <span className="text-sm">{error}</span>
                     </div>
                   )}
 
                   {success && (
-                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-start gap-2 mb-4">
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-start gap-2 mb-4">
                       <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                       <span className="text-sm">{success}</span>
                     </div>
@@ -1009,7 +1172,7 @@
                           type="text"
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                           placeholder="Ej: 25, Equindeca, Baños..."
                         />
                       </div>
@@ -1022,7 +1185,7 @@
                       <select
                         value={selectedLocal}
                         onChange={(e) => setSelectedLocal(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                       >
                         <option value="">-- Seleccione un local --</option>
                         {filteredLocales.map(local => {
@@ -1046,7 +1209,7 @@
                     </div>
 
                     {selectedLocal && (
-                      <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                      <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl">
                         <p className="text-sm text-yellow-800">
                           <strong>Local {selectedLocal} - {locales.find(l => String(l.numero) === String(selectedLocal))?.inquilino}</strong>
                           <br />
@@ -1069,7 +1232,7 @@
                         step="0.01"
                         value={lectura}
                         onChange={(e) => setLectura(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                         placeholder="Ej: 1234.56"
                       />
                     </div>
@@ -1084,11 +1247,11 @@
                         accept="image/*"
                         capture="environment"
                         onChange={handleFileChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                       />
                       {foto && (
                         <div className="mt-4">
-                          <img src={foto} alt="Preview" className="w-full max-h-64 object-contain rounded-lg border border-gray-300" />
+                          <img src={foto} alt="Preview" className="w-full max-h-64 object-contain rounded-xl border border-gray-300 shadow-sm" />
                         </div>
                       )}
                     </div>
@@ -1096,7 +1259,7 @@
                     <button
                       onClick={handleSubmit}
                       disabled={loading}
-                      className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition-colors"
+                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg"
                     >
                       <Camera className="w-5 h-5" />
                       {loading ? 'Guardando...' : 'Registrar Lectura'}
@@ -1104,18 +1267,33 @@
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <h2 className="text-lg font-bold text-gray-800 mb-4">Mis Registros de Hoy</h2>
+                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                  <h2 className="text-xl font-bold text-gray-800 mb-4">Mis Registros de Hoy</h2>
                   <div className="space-y-3">
                     {registros
                       .filter(r => r.username === user.username && r.fecha && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0])
                       .map(r => (
-                        <div key={r.firebaseId || r.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
+                        <div key={r.firebaseId || r.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                          <div className="flex-1">
                             <p className="font-medium text-gray-800">{r.local} - {r.inquilino}</p>
                             <p className="text-sm text-gray-600">{r.lectura} m³ - {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}</p>
                           </div>
-                          <CheckCircle className="w-6 h-6 text-green-500" />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => iniciarEdicion(r)}
+                              className="flex items-center gap-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs transition-colors"
+                            >
+                              <Edit className="w-3 h-3" />
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => eliminarRegistro(r)}
+                              className="flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs transition-colors"
+                            >
+                              <Trash className="w-3 h-3" />
+                              Eliminar
+                            </button>
+                          </div>
                         </div>
                       ))}
                     {registros.filter(r => r.username === user.username && r.fecha && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0]).length === 0 && (
@@ -1123,6 +1301,50 @@
                     )}
                   </div>
                 </div>
+
+                {/* Modal de Edición para Guardia */}
+                {editandoRegistro && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-gray-200">
+                      <h3 className="text-xl font-bold text-gray-800 mb-4">Editar Lectura</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-2">Local: <span className="font-semibold">{editandoRegistro.local}</span></p>
+                          <p className="text-sm text-gray-600 mb-4">Inquilino: <span className="font-semibold">{editandoRegistro.inquilino}</span></p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nueva Lectura (m³) *
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editLectura}
+                            onChange={(e) => setEditLectura(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                            placeholder="Ej: 1234.56"
+                          />
+                        </div>
+                        <div className="flex gap-4 pt-4">
+                          <button
+                            onClick={guardarEdicion}
+                            disabled={loading}
+                            className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105"
+                          >
+                            {loading ? 'Guardando...' : 'Guardar Cambios'}
+                          </button>
+                          <button
+                            onClick={cancelarEdicion}
+                            disabled={loading}
+                            className="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -1132,4 +1354,3 @@
     </script>
 </body>
 </html>
-
