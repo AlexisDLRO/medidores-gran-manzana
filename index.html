@@ -326,6 +326,21 @@
             {numero: "MAD-003", inquilino: "Medidor Adicional 003"}
           ];
 
+          // Función para obtener la fecha local en formato YYYY-MM-DD
+          const obtenerFechaLocal = (fechaISO) => {
+            const fecha = new Date(fechaISO);
+            // Ajustar por la zona horaria local
+            const offset = fecha.getTimezoneOffset() * 60000; // offset en milisegundos
+            const fechaLocal = new Date(fecha.getTime() - offset);
+            return fechaLocal.toISOString().split('T')[0];
+          };
+
+          // Función para obtener la fecha de hoy en formato YYYY-MM-DD (local)
+          const obtenerHoy = () => {
+            const hoy = new Date();
+            return obtenerFechaLocal(hoy.toISOString());
+          };
+
           // Función para ordenar locales
           const ordenarLocales = (a, b) => {
             // Convertir a string para comparar
@@ -543,11 +558,12 @@
               return `La lectura parece muy alta. Anterior: ${local.ultimaLectura}, Nueva: ${lecturaNum}. ¿Está seguro?`;
             }
 
-            const hoy = new Date().toISOString().split('T')[0];
+            const hoy = obtenerHoy();
             const yaRegistrado = registros.find(r => {
               if (!r.fecha) return false;
+              const fechaRegistro = obtenerFechaLocal(r.fecha);
               return String(r.local) === String(localValidar) && 
-                     r.fecha.split('T')[0] === hoy &&
+                     fechaRegistro === hoy &&
                      (!editandoRegistro || r.firebaseId !== editandoRegistro.firebaseId);
             });
             if (yaRegistrado) return 'Este local ya fue registrado hoy';
@@ -740,8 +756,12 @@
           };
 
           const exportarExcel = () => {
-            const hoy = new Date().toISOString().split('T')[0];
-            const registrosHoy = registros.filter(r => r.fecha && r.fecha.split('T')[0] === hoy);
+            const hoy = obtenerHoy();
+            const registrosHoy = registros.filter(r => {
+              if (!r.fecha) return false;
+              const fechaRegistro = obtenerFechaLocal(r.fecha);
+              return fechaRegistro === hoy;
+            });
             
             let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
             
@@ -785,7 +805,7 @@
             
             const registrosFiltrados = registros.filter(r => {
               if (!r.fecha) return false;
-              const fechaRegistro = r.fecha.split('T')[0];
+              const fechaRegistro = obtenerFechaLocal(r.fecha);
               return fechaRegistro >= fechaInicio && fechaRegistro <= fechaFinSeleccionada;
             });
 
@@ -831,8 +851,12 @@
           };
 
           const calcularProgreso = () => {
-            const hoy = new Date().toISOString().split('T')[0];
-            const registrosHoy = registros.filter(r => r.fecha && r.fecha.split('T')[0] === hoy);
+            const hoy = obtenerHoy();
+            const registrosHoy = registros.filter(r => {
+              if (!r.fecha) return false;
+              const fechaRegistro = obtenerFechaLocal(r.fecha);
+              return fechaRegistro === hoy;
+            });
             return {
               completados: registrosHoy.length,
               total: locales.length,
@@ -954,8 +978,12 @@
 
           if (view === 'admin') {
             const progreso = calcularProgreso();
-            const hoy = new Date().toISOString().split('T')[0];
-            const registrosHoy = registros.filter(r => r.fecha && r.fecha.split('T')[0] === hoy);
+            const hoy = obtenerHoy();
+            const registrosHoy = registros.filter(r => {
+              if (!r.fecha) return false;
+              const fechaRegistro = obtenerFechaLocal(r.fecha);
+              return fechaRegistro === hoy;
+            });
 
             return (
               <div className="min-h-screen bg-gray-50 p-4">
@@ -1330,11 +1358,13 @@
                       >
                         <option value="">-- Seleccione un local --</option>
                         {filteredLocales.map(local => {
-                          const hoy = new Date().toISOString().split('T')[0];
-                          const yaRegistrado = registros.find(r => 
-                            String(r.local) === String(local.numero) && 
-                            r.fecha && r.fecha.split('T')[0] === hoy
-                          );
+                          const hoy = obtenerHoy();
+                          const yaRegistrado = registros.find(r => {
+                            if (!r.fecha) return false;
+                            const fechaRegistro = obtenerFechaLocal(r.fecha);
+                            return String(r.local) === String(local.numero) && 
+                                   fechaRegistro === hoy;
+                          });
                           const etiqueta = local.grupo ? `${local.numero} (Medidor Compartido)` : local.numero;
                           return (
                             <option key={local.numero} value={local.numero} disabled={yaRegistrado}>
@@ -1412,7 +1442,12 @@
                   <h2 className="text-xl font-bold text-gray-800 mb-4">Mis Registros de Hoy</h2>
                   <div className="space-y-3">
                     {registros
-                      .filter(r => r.username === user.username && r.fecha && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0])
+                      .filter(r => {
+                        if (!r.fecha) return false;
+                        const fechaRegistro = obtenerFechaLocal(r.fecha);
+                        const hoy = obtenerHoy();
+                        return r.username === user.username && fechaRegistro === hoy;
+                      })
                       .sort(ordenarRegistros) // Ordenar registros del guardia
                       .map(r => (
                         <div key={r.firebaseId || r.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
@@ -1438,7 +1473,12 @@
                           </div>
                         </div>
                       ))}
-                    {registros.filter(r => r.username === user.username && r.fecha && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0]).length === 0 && (
+                    {registros.filter(r => {
+                      if (!r.fecha) return false;
+                      const fechaRegistro = obtenerFechaLocal(r.fecha);
+                      const hoy = obtenerHoy();
+                      return r.username === user.username && fechaRegistro === hoy;
+                    }).length === 0 && (
                       <p className="text-center text-gray-500 py-4">No has registrado ningún local hoy</p>
                     )}
                   </div>
@@ -1496,7 +1536,6 @@
     </script>
 </body>
 </html>
-
 
 
 
