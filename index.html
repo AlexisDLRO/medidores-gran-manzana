@@ -185,7 +185,7 @@
           const [fechaInicio, setFechaInicio] = useState('');
           const [fechaFin, setFechaFin] = useState('');
 
-          // Datos de locales
+          // Datos de locales - CORREGIDO según tu secuencia
           const localesData = [
             {numero: "1-2-3-4", inquilino: "Ancla Izquierda", estado: "Vacía", grupo: true},
             {numero: 5, inquilino: "Elizabeth Godoy"},
@@ -326,6 +326,30 @@
             {numero: "MAD-003", inquilino: "Medidor Adicional 003"}
           ];
 
+          // Función para ordenar locales
+          const ordenarLocales = (a, b) => {
+            // Convertir a string para comparar
+            const numA = String(a.numero);
+            const numB = String(b.numero);
+            
+            // Si ambos son números, comparar numéricamente
+            if (!isNaN(numA) && !isNaN(numB)) {
+              return parseInt(numA) - parseInt(numB);
+            }
+            
+            // Si uno es número y otro no, el número va primero
+            if (!isNaN(numA) && isNaN(numB)) return -1;
+            if (isNaN(numA) && !isNaN(numB)) return 1;
+            
+            // Ambos son strings, comparar alfabéticamente
+            return numA.localeCompare(numB);
+          };
+
+          // Función para ordenar registros por local
+          const ordenarRegistros = (a, b) => {
+            return ordenarLocales({numero: a.local}, {numero: b.local});
+          };
+
           useEffect(() => {
             loadData();
             if (firebaseInitialized) {
@@ -366,7 +390,8 @@
                     firebaseId: key,
                     ...data[key]
                   }));
-                  setRegistros(registrosArray);
+                  // Ordenar registros al cargarlos
+                  setRegistros(registrosArray.sort(ordenarRegistros));
                   setFirebaseError('');
                 } else {
                   setRegistros([]);
@@ -388,7 +413,7 @@
                 ...l,
                 ultimaLectura: 0,
                 fechaUltimaLectura: null
-              }));
+              })).sort(ordenarLocales); // Ordenar locales al cargarlos
 
               const localesStorage = localStorage.getItem('locales-gran-manzana');
               if (localesStorage) {
@@ -410,7 +435,7 @@
                 ...l,
                 ultimaLectura: 0,
                 fechaUltimaLectura: null
-              })));
+              })).sort(ordenarLocales));
             }
           };
 
@@ -720,13 +745,8 @@
             
             let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
             
-            const registrosOrdenados = [...registrosHoy].sort((a, b) => {
-              const getNumero = (local) => {
-                const match = String(local).match(/\d+/);
-                return match ? parseInt(match[0]) : 9999;
-              };
-              return getNumero(a.local) - getNumero(b.local);
-            });
+            // Ordenar registros para el Excel
+            const registrosOrdenados = [...registrosHoy].sort(ordenarRegistros);
             
             registrosOrdenados.forEach(r => {
               const fecha = r.fecha ? new Date(r.fecha) : new Date();
@@ -753,7 +773,7 @@
             window.URL.revokeObjectURL(url);
           };
 
-          // NUEVA FUNCIÓN PARA EXPORTAR POR FECHAS
+          // FUNCIÓN PARA EXPORTAR POR FECHAS - CORREGIDA
           const exportarExcelPorFechas = () => {
             if (!fechaInicio) {
               setError('Por favor seleccione una fecha de inicio');
@@ -776,13 +796,8 @@
 
             let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
             
-            const registrosOrdenados = [...registrosFiltrados].sort((a, b) => {
-              const getNumero = (local) => {
-                const match = String(local).match(/\d+/);
-                return match ? parseInt(match[0]) : 9999;
-              };
-              return getNumero(a.local) - getNumero(b.local);
-            });
+            // Ordenar registros para el Excel
+            const registrosOrdenados = [...registrosFiltrados].sort(ordenarRegistros);
             
             registrosOrdenados.forEach(r => {
               const fecha = r.fecha ? new Date(r.fecha) : new Date();
@@ -831,7 +846,7 @@
               String(local.numero).toLowerCase().includes(search) ||
               local.inquilino.toLowerCase().includes(search)
             );
-          });
+          }).sort(ordenarLocales); // Ordenar locales filtrados
 
           if (!user) {
             return (
@@ -1026,7 +1041,7 @@
                       </div>
                     </div>
 
-                    {/* NUEVA SECCIÓN PARA EXPORTAR POR FECHAS */}
+                    {/* SECCIÓN PARA EXPORTAR POR FECHAS */}
                     <div className="bg-blue-50 p-6 rounded-xl mb-6 border border-blue-200">
                       <h3 className="text-xl font-bold text-azul-lgm mb-4 flex items-center gap-2">
                         <Calendar className="w-6 h-6" />
@@ -1126,13 +1141,7 @@
                             </tr>
                           ) : (
                             registrosHoy
-                              .sort((a, b) => {
-                                const getNumero = (local) => {
-                                  const match = String(local).match(/\d+/);
-                                  return match ? parseInt(match[0]) : 9999;
-                                };
-                                return getNumero(a.local) - getNumero(b.local);
-                              })
+                              .sort(ordenarRegistros) // Ordenar registros en la tabla
                               .map(r => (
                                 <tr key={r.firebaseId || r.id} className="hover:bg-gray-50 transition-colors">
                                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
@@ -1404,6 +1413,7 @@
                   <div className="space-y-3">
                     {registros
                       .filter(r => r.username === user.username && r.fecha && r.fecha.split('T')[0] === new Date().toISOString().split('T')[0])
+                      .sort(ordenarRegistros) // Ordenar registros del guardia
                       .map(r => (
                         <div key={r.firebaseId || r.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
                           <div className="flex-1">
@@ -1486,6 +1496,7 @@
     </script>
 </body>
 </html>
+
 
 
 
