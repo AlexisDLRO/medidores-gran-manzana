@@ -328,6 +328,7 @@
 
           // Función para obtener la fecha local en formato YYYY-MM-DD
           const obtenerFechaLocal = (fechaISO) => {
+            if (!fechaISO) return '';
             const fecha = new Date(fechaISO);
             // Ajustar por la zona horaria local
             const offset = fecha.getTimezoneOffset() * 60000; // offset en milisegundos
@@ -1536,6 +1537,5 @@
     </script>
 </body>
 </html>
-
 
 
