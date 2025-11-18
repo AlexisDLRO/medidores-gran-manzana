@@ -185,7 +185,7 @@
           const [fechaInicio, setFechaInicio] = useState('');
           const [fechaFin, setFechaFin] = useState('');
 
-          // Datos de locales - CORREGIDO según tu secuencia
+          // Datos de locales - EN EL ORDEN EXACTO ESPECIFICADO
           const localesData = [
             {numero: "1-2-3-4", inquilino: "Ancla Izquierda", estado: "Vacía", grupo: true},
             {numero: 5, inquilino: "Elizabeth Godoy"},
@@ -342,28 +342,20 @@
             return obtenerFechaLocal(hoy.toISOString());
           };
 
-          // Función para ordenar locales
+          // FUNCIONES DE ORDENAMIENTO MODIFICADAS - Mantienen el orden exacto de localesData
           const ordenarLocales = (a, b) => {
-            // Convertir a string para comparar
-            const numA = String(a.numero);
-            const numB = String(b.numero);
+            // Mantener el orden original del array localesData
+            const indexA = localesData.findIndex(local => String(local.numero) === String(a.numero));
+            const indexB = localesData.findIndex(local => String(local.numero) === String(b.numero));
             
-            // Si ambos son números, comparar numéricamente
-            if (!isNaN(numA) && !isNaN(numB)) {
-              return parseInt(numA) - parseInt(numB);
-            }
-            
-            // Si uno es número y otro no, el número va primero
-            if (!isNaN(numA) && isNaN(numB)) return -1;
-            if (isNaN(numA) && !isNaN(numB)) return 1;
-            
-            // Ambos son strings, comparar alfabéticamente
-            return numA.localeCompare(numB);
+            return indexA - indexB;
           };
 
-          // Función para ordenar registros por local
           const ordenarRegistros = (a, b) => {
-            return ordenarLocales({numero: a.local}, {numero: b.local});
+            const indexA = localesData.findIndex(local => String(local.numero) === String(a.local));
+            const indexB = localesData.findIndex(local => String(local.numero) === String(b.local));
+            
+            return indexA - indexB;
           };
 
           useEffect(() => {
@@ -425,11 +417,12 @@
 
           const loadData = () => {
             try {
+              // SIN .sort() - Mantiene el orden original de localesData
               const initialLocales = localesData.map(l => ({
                 ...l,
                 ultimaLectura: 0,
                 fechaUltimaLectura: null
-              })).sort(ordenarLocales); // Ordenar locales al cargarlos
+              }));
 
               const localesStorage = localStorage.getItem('locales-gran-manzana');
               if (localesStorage) {
@@ -447,11 +440,12 @@
 
             } catch (err) {
               console.error('Error cargando datos:', err);
+              // SIN .sort() - Mantiene el orden original de localesData
               setLocales(localesData.map(l => ({
                 ...l,
                 ultimaLectura: 0,
                 fechaUltimaLectura: null
-              })).sort(ordenarLocales));
+              })));
             }
           };
 
@@ -794,7 +788,7 @@
             window.URL.revokeObjectURL(url);
           };
 
-          // FUNCIÓN PARA EXPORTAR POR FECHAS - CORREGIDA
+          // FUNCIÓN PARA EXPORTAR POR FECHAS
           const exportarExcelPorFechas = () => {
             if (!fechaInicio) {
               setError('Por favor seleccione una fecha de inicio');
@@ -865,13 +859,14 @@
             };
           };
 
+          // SIN .sort() - Mantiene el orden original de localesData
           const filteredLocales = locales.filter(local => {
             const search = searchTerm.toLowerCase();
             return (
               String(local.numero).toLowerCase().includes(search) ||
               local.inquilino.toLowerCase().includes(search)
             );
-          }).sort(ordenarLocales); // Ordenar locales filtrados
+          });
 
           if (!user) {
             return (
@@ -1537,5 +1532,3 @@
     </script>
 </body>
 </html>
-
-
