@@ -184,6 +184,8 @@
           const [editLectura, setEditLectura] = useState('');
           const [fechaInicio, setFechaInicio] = useState('');
           const [fechaFin, setFechaFin] = useState('');
+          const [syncQueue, setSyncQueue] = useState([]);
+          const [syncing, setSyncing] = useState(false);
 
           // Datos de locales - EN EL ORDEN EXACTO ESPECIFICADO
           const localesData = [
@@ -358,6 +360,104 @@
             return indexA - indexB;
           };
 
+          // FUNCIONES PARA SINCRONIZACIÓN OFFLINE
+          const guardarRegistroLocal = (registro) => {
+            try {
+              const registrosLocales = JSON.parse(localStorage.getItem('registros-offline-gran-manzana') || '[]');
+              registrosLocales.push(registro);
+              localStorage.setItem('registros-offline-gran-manzana', JSON.stringify(registrosLocales));
+              return true;
+            } catch (error) {
+              console.error('Error guardando registro local:', error);
+              return false;
+            }
+          };
+
+          const cargarRegistrosLocales = () => {
+            try {
+              const registrosLocales = JSON.parse(localStorage.getItem('registros-offline-gran-manzana') || '[]');
+              return registrosLocales;
+            } catch (error) {
+              console.error('Error cargando registros locales:', error);
+              return [];
+            }
+          };
+
+          const eliminarRegistroLocal = (id) => {
+            try {
+              const registrosLocales = JSON.parse(localStorage.getItem('registros-offline-gran-manzana') || '[]');
+              const nuevosRegistros = registrosLocales.filter(r => r.id !== id);
+              localStorage.setItem('registros-offline-gran-manzana', JSON.stringify(nuevosRegistros));
+              return true;
+            } catch (error) {
+              console.error('Error eliminando registro local:', error);
+              return false;
+            }
+          };
+
+          const sincronizarRegistrosOffline = async () => {
+            if (!firebaseInitialized || !database || !isOnline) {
+              return false;
+            }
+
+            setSyncing(true);
+            setSyncStatus('Sincronizando registros offline...');
+
+            try {
+              const registrosLocales = cargarRegistrosLocales();
+              let sincronizados = 0;
+              let errores = 0;
+
+              for (const registro of registrosLocales) {
+                try {
+                  await guardarRegistroFirebase(registro);
+                  eliminarRegistroLocal(registro.id);
+                  sincronizados++;
+                } catch (error) {
+                  console.error('Error sincronizando registro:', error);
+                  errores++;
+                }
+              }
+
+              setSyncStatus(`Sincronización completada: ${sincronizados} registros sincronizados, ${errores} errores`);
+              setTimeout(() => setSyncStatus(''), 5000);
+
+              // Recargar los registros desde Firebase
+              if (sincronizados > 0) {
+                cargarRegistrosFirebase();
+              }
+
+              setSyncing(false);
+              return true;
+            } catch (error) {
+              console.error('Error en sincronización:', error);
+              setSyncStatus('Error en sincronización');
+              setTimeout(() => setSyncStatus(''), 5000);
+              setSyncing(false);
+              return false;
+            }
+          };
+
+          const cargarRegistrosFirebase = () => {
+            if (!firebaseInitialized || !database) return;
+
+            try {
+              const registrosRef = database.ref('registros');
+              registrosRef.once('value').then((snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                  const registrosArray = Object.keys(data).map(key => ({
+                    firebaseId: key,
+                    ...data[key]
+                  }));
+                  setRegistros(registrosArray.sort(ordenarRegistros));
+                }
+              });
+            } catch (error) {
+              console.error('Error cargando registros de Firebase:', error);
+            }
+          };
+
           useEffect(() => {
             loadData();
             if (firebaseInitialized) {
@@ -366,12 +466,17 @@
             
             const handleOnline = () => {
               setIsOnline(true);
-              setSyncStatus('Conectado a Firebase');
-              setTimeout(() => setSyncStatus(''), 3000);
+              setSyncStatus('Conectado a Firebase - Sincronizando...');
+              // Sincronizar registros offline cuando se recupera la conexión
+              setTimeout(() => {
+                sincronizarRegistrosOffline();
+              }, 2000);
             };
+            
             const handleOffline = () => {
               setIsOnline(false);
               setSyncStatus('Modo offline - Los datos se guardarán localmente');
+              setTimeout(() => setSyncStatus(''), 5000);
             };
             
             window.addEventListener('online', handleOnline);
@@ -398,7 +503,6 @@
                     firebaseId: key,
                     ...data[key]
                   }));
-                  // Ordenar registros al cargarlos
                   setRegistros(registrosArray.sort(ordenarRegistros));
                   setFirebaseError('');
                 } else {
@@ -437,6 +541,12 @@
               }
 
               setLocales(initialLocales);
+
+              // Cargar registros locales offline
+              const registrosLocales = cargarRegistrosLocales();
+              if (registrosLocales.length > 0) {
+                setRegistros(prev => [...prev, ...registrosLocales].sort(ordenarRegistros));
+              }
 
             } catch (err) {
               console.error('Error cargando datos:', err);
@@ -584,7 +694,7 @@
               const localData = locales.find(l => String(l.numero) === String(selectedLocal));
 
               const nuevoRegistro = {
-                id: Date.now(),
+                id: Date.now(), // ID local único
                 local: selectedLocal,
                 inquilino: localData.inquilino,
                 lectura: lecturaNum,
@@ -599,12 +709,23 @@
               if (firebaseInitialized && database && isOnline) {
                 try {
                   guardado = await guardarRegistroFirebase(nuevoRegistro);
+                  if (guardado) {
+                    setSuccess(`✓ Local ${selectedLocal} - ${localData.inquilino} registrado correctamente`);
+                  }
                 } catch (firebaseError) {
                   console.warn('Error con Firebase, guardando localmente:', firebaseError);
-                  guardado = true;
+                  // Si falla Firebase, guardar localmente
+                  guardado = guardarRegistroLocal(nuevoRegistro);
+                  if (guardado) {
+                    setSuccess(`✓ Local ${selectedLocal} - ${localData.inquilino} guardado localmente (sin conexión)`);
+                  }
                 }
               } else {
-                guardado = true;
+                // Modo offline - guardar localmente
+                guardado = guardarRegistroLocal(nuevoRegistro);
+                if (guardado) {
+                  setSuccess(`✓ Local ${selectedLocal} - ${localData.inquilino} guardado localmente (modo offline)`);
+                }
               }
               
               if (!guardado) {
@@ -613,6 +734,7 @@
                 return;
               }
 
+              // Actualizar el estado local en cualquier caso
               const localesActualizados = locales.map(l => 
                 String(l.numero) === String(selectedLocal)
                   ? { ...l, ultimaLectura: lecturaNum, fechaUltimaLectura: ahora }
@@ -622,7 +744,9 @@
               localStorage.setItem('locales-gran-manzana', JSON.stringify(localesActualizados));
               setLocales(localesActualizados);
 
-              setSuccess(`✓ Local ${selectedLocal} - ${localData.inquilino} registrado correctamente`);
+              // Agregar a registros locales para mostrar inmediatamente
+              setRegistros(prev => [...prev, nuevoRegistro].sort(ordenarRegistros));
+
               setSelectedLocal('');
               setLectura('');
               setFoto(null);
@@ -672,7 +796,7 @@
 
               let actualizado = false;
 
-              if (firebaseInitialized && database && isOnline) {
+              if (firebaseInitialized && database && isOnline && editandoRegistro.firebaseId) {
                 try {
                   actualizado = await actualizarRegistroFirebase(editandoRegistro.firebaseId, {
                     lectura: lecturaNum,
@@ -680,15 +804,31 @@
                   });
                 } catch (firebaseError) {
                   console.warn('Error actualizando en Firebase:', firebaseError);
-                  actualizado = true;
+                  // Si es un registro offline, actualizar localmente
+                  if (editandoRegistro.id) {
+                    const registrosLocales = cargarRegistrosLocales();
+                    const nuevosRegistros = registrosLocales.map(r => 
+                      r.id === editandoRegistro.id ? registroActualizado : r
+                    );
+                    localStorage.setItem('registros-offline-gran-manzana', JSON.stringify(nuevosRegistros));
+                    actualizado = true;
+                  }
                 }
-              } else {
+              } else if (editandoRegistro.id) {
+                // Actualizar registro offline
+                const registrosLocales = cargarRegistrosLocales();
+                const nuevosRegistros = registrosLocales.map(r => 
+                  r.id === editandoRegistro.id ? registroActualizado : r
+                );
+                localStorage.setItem('registros-offline-gran-manzana', JSON.stringify(nuevosRegistros));
                 actualizado = true;
               }
 
               if (actualizado) {
                 setRegistros(prev => prev.map(r => 
-                  r.firebaseId === editandoRegistro.firebaseId ? registroActualizado : r
+                  (r.firebaseId === editandoRegistro.firebaseId || r.id === editandoRegistro.id) 
+                    ? registroActualizado 
+                    : r
                 ));
 
                 const localesActualizados = locales.map(l => 
@@ -725,19 +865,25 @@
             try {
               let eliminado = false;
 
-              if (firebaseInitialized && database && isOnline) {
+              if (firebaseInitialized && database && isOnline && registro.firebaseId) {
                 try {
                   eliminado = await eliminarRegistroFirebase(registro.firebaseId);
                 } catch (firebaseError) {
                   console.warn('Error eliminando en Firebase:', firebaseError);
-                  eliminado = true;
+                  // Si es un registro offline, eliminar localmente
+                  if (registro.id) {
+                    eliminado = eliminarRegistroLocal(registro.id);
+                  }
                 }
-              } else {
-                eliminado = true;
+              } else if (registro.id) {
+                // Eliminar registro offline
+                eliminado = eliminarRegistroLocal(registro.id);
               }
 
               if (eliminado) {
-                setRegistros(prev => prev.filter(r => r.firebaseId !== registro.firebaseId));
+                setRegistros(prev => prev.filter(r => 
+                  r.firebaseId !== registro.firebaseId && r.id !== registro.id
+                ));
                 setSuccess(`✓ Registro del local ${registro.local} eliminado correctamente`);
               } else {
                 setError('Error al eliminar el registro');
@@ -1065,6 +1211,26 @@
                       </div>
                     </div>
 
+                    {/* BOTÓN DE SINCRONIZACIÓN MANUAL */}
+                    {!isOnline && (
+                      <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-yellow-800">Modo Offline</p>
+                            <p className="text-sm text-yellow-700">Los registros se guardan localmente</p>
+                          </div>
+                          <button
+                            onClick={sincronizarRegistrosOffline}
+                            disabled={syncing || !isOnline}
+                            className="flex items-center gap-2 px-4 py-2 bg-azul-lgm hover:bg-[#1a1f45] disabled:bg-gray-400 text-white rounded-xl transition-all"
+                          >
+                            <CloudUpload className="w-4 h-4" />
+                            {syncing ? 'Sincronizando...' : 'Sincronizar'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* SECCIÓN PARA EXPORTAR POR FECHAS */}
                     <div className="bg-blue-50 p-6 rounded-xl mb-6 border border-blue-200">
                       <h3 className="text-xl font-bold text-azul-lgm mb-4 flex items-center gap-2">
@@ -1153,13 +1319,14 @@
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Hora</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Guardia</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Foto</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                           {registrosHoy.length === 0 ? (
                             <tr>
-                              <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
+                              <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
                                 No hay registros para hoy
                               </td>
                             </tr>
@@ -1181,6 +1348,19 @@
                                            onClick={() => window.open(r.foto, '_blank')} />
                                     ) : (
                                       <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Sin foto</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    {r.firebaseId ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                        <Wifi className="w-3 h-3" />
+                                        En Firebase
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                                        <WifiOff className="w-3 h-3" />
+                                        Local
+                                      </span>
                                     )}
                                   </td>
                                   <td className="px-4 py-3">
@@ -1431,6 +1611,14 @@
                       <Camera className="w-5 h-5" />
                       {loading ? 'Guardando...' : 'Registrar Lectura'}
                     </button>
+
+                    {!isOnline && (
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                        <p className="text-sm text-yellow-800 text-center">
+                          <strong>Modo Offline</strong> - Los registros se guardan localmente y se sincronizarán automáticamente cuando recuperes la conexión.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1450,6 +1638,13 @@
                           <div className="flex-1">
                             <p className="font-medium text-gray-800">{r.local} - {r.inquilino}</p>
                             <p className="text-sm text-gray-600">{r.lectura} m³ - {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {r.firebaseId ? (
+                                <span className="text-green-600">✓ Sincronizado con Firebase</span>
+                              ) : (
+                                <span className="text-yellow-600">● Guardado localmente (offline)</span>
+                              )}
+                            </p>
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -1532,3 +1727,4 @@
     </script>
 </body>
 </html>
+
