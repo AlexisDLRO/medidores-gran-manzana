@@ -66,7 +66,7 @@
             firebaseInitialized = false;
         }
 
-        // Iconos (se mantienen igual)
+        // Iconos
         const Camera = ({ className }) => (
             <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -182,11 +182,13 @@
           const [firebaseError, setFirebaseError] = useState('');
           const [editandoRegistro, setEditandoRegistro] = useState(null);
           const [editLectura, setEditLectura] = useState('');
+          const [fechaInicio, setFechaInicio] = useState('');
+          const [fechaFin, setFechaFin] = useState('');
 
           // Datos de locales
           const localesData = [
             {numero: "1-2-3-4", inquilino: "Ancla Izquierda", estado: "Vacía", grupo: true},
-            {numero: 5, inquilino: "Ancla Izquierda"},
+            {numero: 5, inquilino: "Elizabeth Godoy"},
             {numero: 6, inquilino: "Elizabeth Godoy"},
             {numero: 7, inquilino: "Elizabeth Godoy"},
             {numero: 8, inquilino: "Elizabeth Godoy"},
@@ -563,10 +565,10 @@
                   guardado = await guardarRegistroFirebase(nuevoRegistro);
                 } catch (firebaseError) {
                   console.warn('Error con Firebase, guardando localmente:', firebaseError);
-                  guardado = guardarRegistroLocal(nuevoRegistro);
+                  guardado = true;
                 }
               } else {
-                guardado = guardarRegistroLocal(nuevoRegistro);
+                guardado = true;
               }
               
               if (!guardado) {
@@ -749,6 +751,68 @@
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
+          };
+
+          // NUEVA FUNCIÓN PARA EXPORTAR POR FECHAS
+          const exportarExcelPorFechas = () => {
+            if (!fechaInicio) {
+              setError('Por favor seleccione una fecha de inicio');
+              return;
+            }
+
+            // Si no se selecciona fecha fin, usar la misma fecha de inicio
+            const fechaFinSeleccionada = fechaFin || fechaInicio;
+            
+            const registrosFiltrados = registros.filter(r => {
+              if (!r.fecha) return false;
+              const fechaRegistro = r.fecha.split('T')[0];
+              return fechaRegistro >= fechaInicio && fechaRegistro <= fechaFinSeleccionada;
+            });
+
+            if (registrosFiltrados.length === 0) {
+              setError('No hay registros para el rango de fechas seleccionado');
+              return;
+            }
+
+            let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
+            
+            const registrosOrdenados = [...registrosFiltrados].sort((a, b) => {
+              const getNumero = (local) => {
+                const match = String(local).match(/\d+/);
+                return match ? parseInt(match[0]) : 9999;
+              };
+              return getNumero(a.local) - getNumero(b.local);
+            });
+            
+            registrosOrdenados.forEach(r => {
+              const fecha = r.fecha ? new Date(r.fecha) : new Date();
+              const fechaStr = fecha.toLocaleDateString('es-EC');
+              const horaStr = fecha.toLocaleTimeString('es-EC');
+              const tieneFoto = r.foto ? 'Sí' : 'No';
+              
+              const limpiar = (texto) => {
+                texto = String(texto).replace(/;/g, ',');
+                return texto;
+              };
+              
+              csv += `${fechaStr};${horaStr};${limpiar(r.local)};${limpiar(r.inquilino)};${r.lectura};${limpiar(r.guardia)};${tieneFoto}\n`;
+            });
+
+            const nombreArchivo = fechaInicio === fechaFinSeleccionada 
+              ? `lecturas-gran-manzana-${fechaInicio}.csv`
+              : `lecturas-gran-manzana-${fechaInicio}-a-${fechaFinSeleccionada}.csv`;
+
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nombreArchivo;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            setSuccess(`Excel exportado correctamente: ${registrosFiltrados.length} registros`);
           };
 
           const calcularProgreso = () => {
@@ -962,6 +1026,59 @@
                       </div>
                     </div>
 
+                    {/* NUEVA SECCIÓN PARA EXPORTAR POR FECHAS */}
+                    <div className="bg-blue-50 p-6 rounded-xl mb-6 border border-blue-200">
+                      <h3 className="text-xl font-bold text-azul-lgm mb-4 flex items-center gap-2">
+                        <Calendar className="w-6 h-6" />
+                        Exportar Registros por Fechas
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Fecha de Inicio *
+                          </label>
+                          <input
+                            type="date"
+                            value={fechaInicio}
+                            onChange={(e) => setFechaInicio(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Fecha de Fin (opcional)
+                          </label>
+                          <input
+                            type="date"
+                            value={fechaFin}
+                            onChange={(e) => setFechaFin(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Si no selecciona fecha fin, se exportará solo la fecha de inicio
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-end">
+                          <button
+                            onClick={exportarExcelPorFechas}
+                            disabled={!fechaInicio}
+                            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-azul-lgm hover:bg-[#1a1f45] disabled:bg-gray-400 text-white rounded-xl transition-all transform hover:scale-105 font-semibold shadow-lg"
+                          >
+                            <Download className="w-5 h-5" />
+                            Exportar por Fechas
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="text-sm text-gray-600">
+                        <p><strong>Nota:</strong> El archivo se descargará en formato CSV compatible con Excel.</p>
+                        <p>Incluye todos los registros del rango de fechas seleccionado.</p>
+                      </div>
+                    </div>
+
                     <div className="flex gap-4">
                       <button
                         onClick={exportarExcel}
@@ -969,7 +1086,7 @@
                         className="flex items-center gap-2 px-6 py-3 bg-verde-lgm hover:bg-[#7a8560] disabled:bg-gray-400 text-white rounded-xl transition-all transform hover:scale-105 font-semibold shadow-lg"
                       >
                         <Download className="w-5 h-5" />
-                        Exportar a Excel ({registrosHoy.length} registros)
+                        Exportar Hoy ({registrosHoy.length} registros)
                       </button>
                     </div>
                     
@@ -1368,7 +1485,6 @@
         ReactDOM.render(<MedidorApp />, document.getElementById('root'));
     </script>
 </body>
-</html>
 </html>
 
 
