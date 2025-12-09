@@ -915,12 +915,28 @@
               const horaStr = fecha.toLocaleTimeString('es-EC');
               const tieneFoto = r.foto ? 'Sí' : 'No';
               
+              // FORMATO CORREGIDO: Reemplazar punto por coma para decimales
+              // y formatear números grandes sin separadores de miles
+              let lecturaFormateada;
+              if (r.lectura !== undefined && r.lectura !== null) {
+                // Convertir a número y formatear con comas para decimales
+                const numero = parseFloat(r.lectura);
+                // Usar 3 decimales como máximo
+                lecturaFormateada = numero.toLocaleString('es-ES', {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 3,
+                  useGrouping: false // Sin separadores de miles
+                });
+              } else {
+                lecturaFormateada = '0';
+              }
+              
               const limpiar = (texto) => {
                 texto = String(texto).replace(/;/g, ',');
                 return texto;
               };
               
-              csv += `${fechaStr};${horaStr};${limpiar(r.local)};${limpiar(r.inquilino)};${r.lectura};${limpiar(r.guardia)};${tieneFoto}\n`;
+              csv += `${fechaStr};${horaStr};${limpiar(r.local)};${limpiar(r.inquilino)};${lecturaFormateada};${limpiar(r.guardia)};${tieneFoto}\n`;
             });
 
             const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -966,12 +982,28 @@
               const horaStr = fecha.toLocaleTimeString('es-EC');
               const tieneFoto = r.foto ? 'Sí' : 'No';
               
+              // FORMATO CORREGIDO: Reemplazar punto por coma para decimales
+              // y formatear números grandes sin separadores de miles
+              let lecturaFormateada;
+              if (r.lectura !== undefined && r.lectura !== null) {
+                // Convertir a número y formatear con comas para decimales
+                const numero = parseFloat(r.lectura);
+                // Usar 3 decimales como máximo
+                lecturaFormateada = numero.toLocaleString('es-ES', {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 3,
+                  useGrouping: false // Sin separadores de miles
+                });
+              } else {
+                lecturaFormateada = '0';
+              }
+              
               const limpiar = (texto) => {
                 texto = String(texto).replace(/;/g, ',');
                 return texto;
               };
               
-              csv += `${fechaStr};${horaStr};${limpiar(r.local)};${limpiar(r.inquilino)};${r.lectura};${limpiar(r.guardia)};${tieneFoto}\n`;
+              csv += `${fechaStr};${horaStr};${limpiar(r.local)};${limpiar(r.inquilino)};${lecturaFormateada};${limpiar(r.guardia)};${tieneFoto}\n`;
             });
 
             const nombreArchivo = fechaInicio === fechaFinSeleccionada 
@@ -1727,5 +1759,6 @@
     </script>
 </body>
 </html>
+
 
 
