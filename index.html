@@ -162,6 +162,12 @@
             </svg>
         );
 
+        const History = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+
         const MedidorApp = () => {
           const [user, setUser] = useState(null);
           const [view, setView] = useState('login');
@@ -186,6 +192,10 @@
           const [fechaFin, setFechaFin] = useState('');
           const [syncQueue, setSyncQueue] = useState([]);
           const [syncing, setSyncing] = useState(false);
+          const [fechaFiltroGuardia, setFechaFiltroGuardia] = useState('');
+          const [mostrarHistorial, setMostrarHistorial] = useState(false);
+          const [localCorreccion, setLocalCorreccion] = useState('');
+          const [fechaCorreccion, setFechaCorreccion] = useState('');
 
           // Datos de locales - EN EL ORDEN EXACTO ESPECIFICADO
           const localesData = [
@@ -343,6 +353,13 @@
             const hoy = new Date();
             return obtenerFechaLocal(hoy.toISOString());
           };
+
+          // Inicializar fecha de filtro con hoy
+          useEffect(() => {
+            if (user && view === 'registro') {
+              setFechaFiltroGuardia(obtenerHoy());
+            }
+          }, [user, view]);
 
           // FUNCIONES DE ORDENAMIENTO MODIFICADAS - Mantienen el orden exacto de localesData
           const ordenarLocales = (a, b) => {
@@ -650,28 +667,38 @@
             }
           };
 
-          const validarLectura = (lecturaValidar, localValidar) => {
+          // FUNCIÓN DE VALIDACIÓN MODIFICADA - PERMITE CORRECCIONES DE DÍAS ANTERIORES
+          const validarLectura = (lecturaValidar, localValidar, registroExcluido = null, esCorreccion = false) => {
             const local = locales.find(l => String(l.numero) === String(localValidar));
             const lecturaNum = parseFloat(lecturaValidar);
 
             if (!localValidar) return 'Debe seleccionar un local';
             if (!lecturaValidar || isNaN(lecturaNum)) return 'Debe ingresar una lectura válida';
-            if (local.ultimaLectura && lecturaNum < local.ultimaLectura) {
-              return `La lectura no puede ser menor a la anterior (${local.ultimaLectura})`;
-            }
-            if (local.ultimaLectura && lecturaNum > local.ultimaLectura + 1000) {
-              return `La lectura parece muy alta. Anterior: ${local.ultimaLectura}, Nueva: ${lecturaNum}. ¿Está seguro?`;
+            
+            // Solo validar contra lectura anterior si no es una corrección de día anterior
+            if (!esCorreccion) {
+              if (local.ultimaLectura && lecturaNum < local.ultimaLectura) {
+                return `La lectura no puede ser menor a la anterior (${local.ultimaLectura})`;
+              }
+              if (local.ultimaLectura && lecturaNum > local.ultimaLectura + 1000) {
+                return `La lectura parece muy alta. Anterior: ${local.ultimaLectura}, Nueva: ${lecturaNum}. ¿Está seguro?`;
+              }
             }
 
+            // Validar que no haya duplicados para hoy (excepto cuando se está editando)
             const hoy = obtenerHoy();
             const yaRegistrado = registros.find(r => {
               if (!r.fecha) return false;
               const fechaRegistro = obtenerFechaLocal(r.fecha);
               return String(r.local) === String(localValidar) && 
                      fechaRegistro === hoy &&
-                     (!editandoRegistro || r.firebaseId !== editandoRegistro.firebaseId);
+                     (!registroExcluido || 
+                      (r.firebaseId !== registroExcluido.firebaseId && r.id !== registroExcluido.id));
             });
-            if (yaRegistrado) return 'Este local ya fue registrado hoy';
+            
+            if (yaRegistrado && !esCorreccion) {
+              return 'Este local ya fue registrado hoy';
+            }
 
             return null;
           };
@@ -779,7 +806,13 @@
             setError('');
             setSuccess('');
 
-            const errorValidacion = validarLectura(editLectura, editandoRegistro.local);
+            // Determinar si es una corrección de día anterior
+            const fechaRegistro = editandoRegistro.fecha ? obtenerFechaLocal(editandoRegistro.fecha) : null;
+            const hoy = obtenerHoy();
+            const esCorreccionPasada = fechaRegistro && fechaRegistro !== hoy;
+
+            // Pasar el registro que estamos editando para excluirlo de la validación
+            const errorValidacion = validarLectura(editLectura, editandoRegistro.local, editandoRegistro, esCorreccionPasada);
             if (errorValidacion) {
               setError(errorValidacion);
               setLoading(false);
@@ -791,7 +824,9 @@
               const registroActualizado = {
                 ...editandoRegistro,
                 lectura: lecturaNum,
-                fecha: new Date().toISOString()
+                fechaCorreccion: new Date().toISOString(),
+                corregidoPor: user.nombre,
+                lecturaAnterior: editandoRegistro.lectura
               };
 
               let actualizado = false;
@@ -800,7 +835,9 @@
                 try {
                   actualizado = await actualizarRegistroFirebase(editandoRegistro.firebaseId, {
                     lectura: lecturaNum,
-                    fecha: registroActualizado.fecha
+                    fechaCorreccion: registroActualizado.fechaCorreccion,
+                    corregidoPor: registroActualizado.corregidoPor,
+                    lecturaAnterior: registroActualizado.lecturaAnterior
                   });
                 } catch (firebaseError) {
                   console.warn('Error actualizando en Firebase:', firebaseError);
@@ -831,16 +868,19 @@
                     : r
                 ));
 
-                const localesActualizados = locales.map(l => 
-                  String(l.numero) === String(editandoRegistro.local)
-                    ? { ...l, ultimaLectura: lecturaNum, fechaUltimaLectura: registroActualizado.fecha }
-                    : l
-                );
-                
-                localStorage.setItem('locales-gran-manzana', JSON.stringify(localesActualizados));
-                setLocales(localesActualizados);
+                // Solo actualizar última lectura si el registro es de hoy
+                if (!esCorreccionPasada) {
+                  const localesActualizados = locales.map(l => 
+                    String(l.numero) === String(editandoRegistro.local)
+                      ? { ...l, ultimaLectura: lecturaNum, fechaUltimaLectura: registroActualizado.fechaCorreccion }
+                      : l
+                  );
+                  
+                  localStorage.setItem('locales-gran-manzana', JSON.stringify(localesActualizados));
+                  setLocales(localesActualizados);
+                }
 
-                setSuccess(`✓ Lectura del local ${editandoRegistro.local} actualizada correctamente`);
+                setSuccess(`✓ Lectura del local ${editandoRegistro.local} corregida correctamente${esCorreccionPasada ? ' (corrección de fecha anterior)' : ''}`);
                 cancelarEdicion();
               } else {
                 setError('Error al actualizar el registro');
@@ -1035,6 +1075,22 @@
               total: locales.length,
               porcentaje: locales.length > 0 ? Math.round((registrosHoy.length / locales.length) * 100) : 0
             };
+          };
+
+          // Buscar registros para corrección
+          const buscarRegistrosCorreccion = () => {
+            if (!fechaCorreccion || !localCorreccion) {
+              setError('Debe seleccionar una fecha y un local para buscar');
+              return [];
+            }
+
+            return registros.filter(r => {
+              if (!r.fecha) return false;
+              const fechaRegistro = obtenerFechaLocal(r.fecha);
+              return fechaRegistro === fechaCorreccion && 
+                     String(r.local) === String(localCorreccion) &&
+                     r.username === user.username;
+            });
           };
 
           // SIN .sort() - Mantiene el orden original de localesData
@@ -1369,11 +1425,30 @@
                                 <tr key={r.firebaseId || r.id} className="hover:bg-gray-50 transition-colors">
                                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
                                   <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
-                                  <td className="px-4 py-3 text-sm text-gray-700 font-semibold">{r.lectura} m³</td>
+                                  <td className="px-4 py-3 text-sm text-gray-700 font-semibold">
+                                    {r.lectura} m³
+                                    {r.lecturaAnterior && (
+                                      <div className="text-xs text-red-600">
+                                        Corregido: {r.lecturaAnterior} m³ → {r.lectura} m³
+                                      </div>
+                                    )}
+                                  </td>
                                   <td className="px-4 py-3 text-sm text-gray-700">
                                     {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}
+                                    {r.fechaCorreccion && (
+                                      <div className="text-xs text-blue-600">
+                                        Corregido: {new Date(r.fechaCorreccion).toLocaleTimeString()}
+                                      </div>
+                                    )}
                                   </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">{r.guardia}</td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    {r.guardia}
+                                    {r.corregidoPor && r.corregidoPor !== r.guardia && (
+                                      <div className="text-xs text-blue-600">
+                                        Corregido por: {r.corregidoPor}
+                                      </div>
+                                    )}
+                                  </td>
                                   <td className="px-4 py-3">
                                     {r.foto ? (
                                       <img src={r.foto} alt="Medidor" className="w-16 h-16 object-cover rounded-lg cursor-pointer shadow-sm" 
@@ -1392,6 +1467,11 @@
                                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
                                         <WifiOff className="w-3 h-3" />
                                         Local
+                                      </span>
+                                    )}
+                                    {r.fechaCorreccion && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mt-1">
+                                        Corregido
                                       </span>
                                     )}
                                   </td>
@@ -1431,6 +1511,14 @@
                         <div>
                           <p className="text-sm text-gray-600 mb-2">Local: <span className="font-semibold">{editandoRegistro.local}</span></p>
                           <p className="text-sm text-gray-600 mb-4">Inquilino: <span className="font-semibold">{editandoRegistro.inquilino}</span></p>
+                          {editandoRegistro.fecha && obtenerFechaLocal(editandoRegistro.fecha) !== obtenerHoy() && (
+                            <div className="bg-yellow-50 p-3 rounded-lg mb-3">
+                              <p className="text-sm text-yellow-800">
+                                <strong>⚠️ Corrigiendo lectura anterior</strong><br/>
+                                Fecha original: {obtenerFechaLocal(editandoRegistro.fecha)}
+                              </p>
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1522,6 +1610,102 @@
                         style={{ width: `${progreso.porcentaje}%` }}
                       ></div>
                     </div>
+                  </div>
+
+                  {/* SECCIÓN DE CORRECCIÓN DE LECTURAS ANTERIORES */}
+                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-yellow-800 flex items-center gap-2">
+                        <History className="w-5 h-5" />
+                        ¿Necesita corregir una lectura anterior?
+                      </h3>
+                      <button
+                        onClick={() => setMostrarHistorial(!mostrarHistorial)}
+                        className="text-sm text-yellow-700 underline"
+                      >
+                        {mostrarHistorial ? 'Ocultar' : 'Mostrar'}
+                      </button>
+                    </div>
+                    
+                    {mostrarHistorial && (
+                      <div className="space-y-4 mt-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-yellow-700 mb-2">
+                              Fecha a corregir *
+                            </label>
+                            <input
+                              type="date"
+                              value={fechaCorreccion}
+                              onChange={(e) => setFechaCorreccion(e.target.value)}
+                              max={obtenerHoy()}
+                              className="w-full px-4 py-2 border border-yellow-300 rounded-lg"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-yellow-700 mb-2">
+                              Local a corregir *
+                            </label>
+                            <select
+                              value={localCorreccion}
+                              onChange={(e) => setLocalCorreccion(e.target.value)}
+                              className="w-full px-4 py-2 border border-yellow-300 rounded-lg"
+                            >
+                              <option value="">-- Seleccione un local --</option>
+                              {locales.map(local => (
+                                <option key={local.numero} value={local.numero}>
+                                  {local.numero} - {local.inquilino}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        
+                        {fechaCorreccion && localCorreccion && (
+                          <div className="mt-4">
+                            <h4 className="font-semibold mb-2 text-yellow-800">Registros encontrados:</h4>
+                            {buscarRegistrosCorreccion().length === 0 ? (
+                              <p className="text-sm text-yellow-700 bg-yellow-100 p-3 rounded-lg">
+                                No se encontraron registros para {localCorreccion} el {fechaCorreccion}
+                              </p>
+                            ) : (
+                              buscarRegistrosCorreccion().map(registro => (
+                                <div key={registro.id || registro.firebaseId} 
+                                     className="border border-yellow-300 rounded-lg p-3 mb-2 bg-white">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <p className="font-medium">Lectura actual: <span className="font-bold">{registro.lectura} m³</span></p>
+                                      <p className="text-sm text-gray-600">
+                                        Hora: {new Date(registro.fecha).toLocaleTimeString()}
+                                      </p>
+                                      {registro.fechaCorreccion && (
+                                        <p className="text-xs text-blue-600">
+                                          Ya fue corregido el {new Date(registro.fechaCorreccion).toLocaleDateString()}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        iniciarEdicion(registro);
+                                        setMostrarHistorial(false);
+                                      }}
+                                      className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm transition-colors"
+                                    >
+                                      Corregir
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    <p className="text-sm text-yellow-700 mt-3">
+                      <strong>Nota:</strong> Puede corregir lecturas de días anteriores seleccionando la fecha y el local.
+                    </p>
                   </div>
 
                   {error && (
@@ -1655,26 +1839,44 @@
                 </div>
 
                 <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
-                  <h2 className="text-xl font-bold text-gray-800 mb-4">Mis Registros de Hoy</h2>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-gray-800">Mis Registros</h2>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-700">Ver fecha:</label>
+                      <input
+                        type="date"
+                        value={fechaFiltroGuardia}
+                        onChange={(e) => setFechaFiltroGuardia(e.target.value)}
+                        className="px-3 py-1 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
                   <div className="space-y-3">
                     {registros
                       .filter(r => {
                         if (!r.fecha) return false;
                         const fechaRegistro = obtenerFechaLocal(r.fecha);
-                        const hoy = obtenerHoy();
-                        return r.username === user.username && fechaRegistro === hoy;
+                        return r.username === user.username && fechaRegistro === fechaFiltroGuardia;
                       })
                       .sort(ordenarRegistros) // Ordenar registros del guardia
                       .map(r => (
                         <div key={r.firebaseId || r.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
                           <div className="flex-1">
                             <p className="font-medium text-gray-800">{r.local} - {r.inquilino}</p>
-                            <p className="text-sm text-gray-600">{r.lectura} m³ - {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}</p>
+                            <p className="text-sm text-gray-600">
+                              {r.lectura} m³ - {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}
+                              {r.lecturaAnterior && (
+                                <span className="text-red-600 ml-2">(Corregido de {r.lecturaAnterior} m³)</span>
+                              )}
+                            </p>
                             <p className="text-xs text-gray-500 mt-1">
                               {r.firebaseId ? (
                                 <span className="text-green-600">✓ Sincronizado con Firebase</span>
                               ) : (
                                 <span className="text-yellow-600">● Guardado localmente (offline)</span>
+                              )}
+                              {r.fechaCorreccion && (
+                                <span className="text-blue-600 ml-2">● Corregido el {new Date(r.fechaCorreccion).toLocaleDateString()}</span>
                               )}
                             </p>
                           </div>
@@ -1684,7 +1886,7 @@
                               className="flex items-center gap-1 px-3 py-1 bg-azul-lgm hover:bg-[#1a1f45] text-white rounded-lg text-xs transition-colors"
                             >
                               <Edit className="w-3 h-3" />
-                              Editar
+                              {r.fechaCorreccion ? 'Recorregir' : 'Editar'}
                             </button>
                             <button
                               onClick={() => eliminarRegistro(r)}
@@ -1699,10 +1901,13 @@
                     {registros.filter(r => {
                       if (!r.fecha) return false;
                       const fechaRegistro = obtenerFechaLocal(r.fecha);
-                      const hoy = obtenerHoy();
-                      return r.username === user.username && fechaRegistro === hoy;
+                      return r.username === user.username && fechaRegistro === fechaFiltroGuardia;
                     }).length === 0 && (
-                      <p className="text-center text-gray-500 py-4">No has registrado ningún local hoy</p>
+                      <p className="text-center text-gray-500 py-4">
+                        {fechaFiltroGuardia === obtenerHoy() 
+                          ? 'No has registrado ningún local hoy' 
+                          : `No hay registros para el ${fechaFiltroGuardia}`}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -1711,11 +1916,28 @@
                 {editandoRegistro && (
                   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-gray-200">
-                      <h3 className="text-xl font-bold text-gray-800 mb-4">Editar Lectura</h3>
+                      <h3 className="text-xl font-bold text-gray-800 mb-4">
+                        {editandoRegistro.fecha && obtenerFechaLocal(editandoRegistro.fecha) !== obtenerHoy() 
+                          ? 'Corregir Lectura Anterior' 
+                          : 'Editar Lectura'}
+                      </h3>
                       <div className="space-y-4">
                         <div>
                           <p className="text-sm text-gray-600 mb-2">Local: <span className="font-semibold">{editandoRegistro.local}</span></p>
                           <p className="text-sm text-gray-600 mb-4">Inquilino: <span className="font-semibold">{editandoRegistro.inquilino}</span></p>
+                          {editandoRegistro.fecha && obtenerFechaLocal(editandoRegistro.fecha) !== obtenerHoy() && (
+                            <div className="bg-yellow-50 p-3 rounded-lg mb-3">
+                              <p className="text-sm text-yellow-800">
+                                <strong>⚠️ Corrigiendo lectura anterior</strong><br/>
+                                Fecha original: {obtenerFechaLocal(editandoRegistro.fecha)}
+                                {editandoRegistro.fechaCorreccion && (
+                                  <span className="block">
+                                    Última corrección: {new Date(editandoRegistro.fechaCorreccion).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1729,6 +1951,11 @@
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
                             placeholder="Ej: 1234.56"
                           />
+                          {editandoRegistro.lectura && (
+                            <p className="text-sm text-gray-500 mt-1">
+                              Lectura actual: {editandoRegistro.lectura} m³
+                            </p>
+                          )}
                         </div>
                         <div className="flex gap-4 pt-4">
                           <button
@@ -1736,7 +1963,7 @@
                             disabled={loading}
                             className="flex-1 bg-verde-lgm hover:bg-[#7a8560] disabled:bg-gray-400 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105"
                           >
-                            {loading ? 'Guardando...' : 'Guardar Cambios'}
+                            {loading ? 'Guardando...' : editandoRegistro.fecha && obtenerFechaLocal(editandoRegistro.fecha) !== obtenerHoy() ? 'Corregir' : 'Guardar'}
                           </button>
                           <button
                             onClick={cancelarEdicion}
@@ -1759,6 +1986,3 @@
     </script>
 </body>
 </html>
-
-
-
