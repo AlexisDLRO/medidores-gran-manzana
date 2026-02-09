@@ -12,6 +12,8 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -19,26 +21,46 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
         }
         .logo-text {
-            color: #252b5d; /* Azul de La Gran Manzana */
-            font-weight: bold;
+            color: #252b5d;
         }
         .bg-verde-lgm {
-            background-color: #919677; /* Verde de La Gran Manzana */
+            background-color: #919677;
         }
         .bg-azul-lgm {
-            background-color: #252b5d; /* Azul de La Gran Manzana */
+            background-color: #252b5d;
         }
         .text-verde-lgm {
-            color: #919677; /* Verde de La Gran Manzana */
+            color: #919677;
         }
         .text-azul-lgm {
-            color: #252b5d; /* Azul de La Gran Manzana */
+            color: #252b5d;
         }
         .border-verde-lgm {
-            border-color: #919677; /* Verde de La Gran Manzana */
+            border-color: #919677;
         }
         .border-azul-lgm {
-            border-color: #252b5d; /* Azul de La Gran Manzana */
+            border-color: #252b5d;
+        }
+        .tab-active {
+            background-color: #252b5d;
+            color: white;
+        }
+        .tab-inactive {
+            background-color: #f3f4f6;
+            color: #6b7280;
+        }
+        .calendar-day {
+            min-height: 80px;
+            border: 1px solid #e5e7eb;
+        }
+        .calendar-day-complete {
+            background-color: #d1fae5;
+        }
+        .calendar-day-partial {
+            background-color: #fef3c7;
+        }
+        .calendar-day-empty {
+            background-color: #fee2e2;
         }
     </style>
 </head>
@@ -46,7 +68,7 @@
     <div id="root"></div>
     
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
         // Configuración de Firebase
         const firebaseConfig = {
@@ -66,7 +88,7 @@
             firebaseInitialized = false;
         }
 
-        // Iconos
+        // ==================== ICONOS ====================
         const Camera = ({ className }) => (
             <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -136,14 +158,6 @@
             </svg>
         );
 
-        const RefreshCw = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <polyline points="23 4 23 10 17 10" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                <polyline points="1 20 1 14 7 14" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-        );
-
         const CloudUpload = ({ className }) => (
             <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -165,6 +179,34 @@
         const History = ({ className }) => (
             <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+
+        const TrendingUp = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="17 6 23 6 23 12" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+        );
+
+        const Award = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="8" r="7" strokeWidth={2} />
+                <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+        );
+
+        const AlertTriangle = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        );
+
+        const BarChart = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <line x1="12" y1="20" x2="12" y2="10" strokeWidth={2} strokeLinecap="round" />
+                <line x1="18" y1="20" x2="18" y2="4" strokeWidth={2} strokeLinecap="round" />
+                <line x1="6" y1="20" x2="6" y2="16" strokeWidth={2} strokeLinecap="round" />
             </svg>
         );
 
@@ -190,14 +232,20 @@
           const [editLectura, setEditLectura] = useState('');
           const [fechaInicio, setFechaInicio] = useState('');
           const [fechaFin, setFechaFin] = useState('');
-          const [syncQueue, setSyncQueue] = useState([]);
           const [syncing, setSyncing] = useState(false);
           const [fechaFiltroGuardia, setFechaFiltroGuardia] = useState('');
           const [mostrarHistorial, setMostrarHistorial] = useState(false);
           const [localCorreccion, setLocalCorreccion] = useState('');
           const [fechaCorreccion, setFechaCorreccion] = useState('');
 
-          // Datos de locales - EN EL ORDEN EXACTO ESPECIFICADO
+          // NUEVOS ESTADOS PARA ADMIN DASHBOARD
+          const [activeTab, setActiveTab] = useState('registros');
+          const [mesSeleccionado, setMesSeleccionado] = useState(new Date().getMonth());
+          const [anioSeleccionado, setAnioSeleccionado] = useState(new Date().getFullYear());
+          const chartRef = useRef(null);
+          const chartInstance = useRef(null);
+
+          // Datos de locales
           const localesData = [
             {numero: "1-2-3-4", inquilino: "Ancla Izquierda", estado: "Vacía", grupo: true},
             {numero: 5, inquilino: "Ancla Izquierda"},
@@ -338,46 +386,39 @@
             {numero: "MAD-003", inquilino: "Medidor Adicional 003"}
           ];
 
-          // Función para obtener la fecha local en formato YYYY-MM-DD
+          // Funciones de utilidad
           const obtenerFechaLocal = (fechaISO) => {
             if (!fechaISO) return '';
             const fecha = new Date(fechaISO);
-            // Ajustar por la zona horaria local
-            const offset = fecha.getTimezoneOffset() * 60000; // offset en milisegundos
+            const offset = fecha.getTimezoneOffset() * 60000;
             const fechaLocal = new Date(fecha.getTime() - offset);
             return fechaLocal.toISOString().split('T')[0];
           };
 
-          // Función para obtener la fecha de hoy en formato YYYY-MM-DD (local)
           const obtenerHoy = () => {
             const hoy = new Date();
             return obtenerFechaLocal(hoy.toISOString());
           };
 
-          // Inicializar fecha de filtro con hoy
           useEffect(() => {
             if (user && view === 'registro') {
               setFechaFiltroGuardia(obtenerHoy());
             }
           }, [user, view]);
 
-          // FUNCIONES DE ORDENAMIENTO MODIFICADAS - Mantienen el orden exacto de localesData
           const ordenarLocales = (a, b) => {
-            // Mantener el orden original del array localesData
             const indexA = localesData.findIndex(local => String(local.numero) === String(a.numero));
             const indexB = localesData.findIndex(local => String(local.numero) === String(b.numero));
-            
             return indexA - indexB;
           };
 
           const ordenarRegistros = (a, b) => {
             const indexA = localesData.findIndex(local => String(local.numero) === String(a.local));
             const indexB = localesData.findIndex(local => String(local.numero) === String(b.local));
-            
             return indexA - indexB;
           };
 
-          // FUNCIONES PARA SINCRONIZACIÓN OFFLINE
+          // Funciones de almacenamiento local
           const guardarRegistroLocal = (registro) => {
             try {
               const registrosLocales = JSON.parse(localStorage.getItem('registros-offline-gran-manzana') || '[]');
@@ -413,9 +454,7 @@
           };
 
           const sincronizarRegistrosOffline = async () => {
-            if (!firebaseInitialized || !database || !isOnline) {
-              return false;
-            }
+            if (!firebaseInitialized || !database || !isOnline) return false;
 
             setSyncing(true);
             setSyncStatus('Sincronizando registros offline...');
@@ -439,7 +478,6 @@
               setSyncStatus(`Sincronización completada: ${sincronizados} registros sincronizados, ${errores} errores`);
               setTimeout(() => setSyncStatus(''), 5000);
 
-              // Recargar los registros desde Firebase
               if (sincronizados > 0) {
                 cargarRegistrosFirebase();
               }
@@ -484,7 +522,6 @@
             const handleOnline = () => {
               setIsOnline(true);
               setSyncStatus('Conectado a Firebase - Sincronizando...');
-              // Sincronizar registros offline cuando se recupera la conexión
               setTimeout(() => {
                 sincronizarRegistrosOffline();
               }, 2000);
@@ -538,7 +575,6 @@
 
           const loadData = () => {
             try {
-              // SIN .sort() - Mantiene el orden original de localesData
               const initialLocales = localesData.map(l => ({
                 ...l,
                 ultimaLectura: 0,
@@ -559,7 +595,6 @@
 
               setLocales(initialLocales);
 
-              // Cargar registros locales offline
               const registrosLocales = cargarRegistrosLocales();
               if (registrosLocales.length > 0) {
                 setRegistros(prev => [...prev, ...registrosLocales].sort(ordenarRegistros));
@@ -567,7 +602,6 @@
 
             } catch (err) {
               console.error('Error cargando datos:', err);
-              // SIN .sort() - Mantiene el orden original de localesData
               setLocales(localesData.map(l => ({
                 ...l,
                 ultimaLectura: 0,
@@ -667,7 +701,6 @@
             }
           };
 
-          // FUNCIÓN DE VALIDACIÓN MODIFICADA - PERMITE CORRECCIONES DE DÍAS ANTERIORES
           const validarLectura = (lecturaValidar, localValidar, registroExcluido = null, esCorreccion = false) => {
             const local = locales.find(l => String(l.numero) === String(localValidar));
             const lecturaNum = parseFloat(lecturaValidar);
@@ -675,7 +708,6 @@
             if (!localValidar) return 'Debe seleccionar un local';
             if (!lecturaValidar || isNaN(lecturaNum)) return 'Debe ingresar una lectura válida';
             
-            // Solo validar contra lectura anterior si no es una corrección de día anterior
             if (!esCorreccion) {
               if (local.ultimaLectura && lecturaNum < local.ultimaLectura) {
                 return `La lectura no puede ser menor a la anterior (${local.ultimaLectura})`;
@@ -685,7 +717,6 @@
               }
             }
 
-            // Validar que no haya duplicados para hoy (excepto cuando se está editando)
             const hoy = obtenerHoy();
             const yaRegistrado = registros.find(r => {
               if (!r.fecha) return false;
@@ -721,7 +752,7 @@
               const localData = locales.find(l => String(l.numero) === String(selectedLocal));
 
               const nuevoRegistro = {
-                id: Date.now(), // ID local único
+                id: Date.now(),
                 local: selectedLocal,
                 inquilino: localData.inquilino,
                 lectura: lecturaNum,
@@ -741,14 +772,12 @@
                   }
                 } catch (firebaseError) {
                   console.warn('Error con Firebase, guardando localmente:', firebaseError);
-                  // Si falla Firebase, guardar localmente
                   guardado = guardarRegistroLocal(nuevoRegistro);
                   if (guardado) {
                     setSuccess(`✓ Local ${selectedLocal} - ${localData.inquilino} guardado localmente (sin conexión)`);
                   }
                 }
               } else {
-                // Modo offline - guardar localmente
                 guardado = guardarRegistroLocal(nuevoRegistro);
                 if (guardado) {
                   setSuccess(`✓ Local ${selectedLocal} - ${localData.inquilino} guardado localmente (modo offline)`);
@@ -761,7 +790,6 @@
                 return;
               }
 
-              // Actualizar el estado local en cualquier caso
               const localesActualizados = locales.map(l => 
                 String(l.numero) === String(selectedLocal)
                   ? { ...l, ultimaLectura: lecturaNum, fechaUltimaLectura: ahora }
@@ -771,7 +799,6 @@
               localStorage.setItem('locales-gran-manzana', JSON.stringify(localesActualizados));
               setLocales(localesActualizados);
 
-              // Agregar a registros locales para mostrar inmediatamente
               setRegistros(prev => [...prev, nuevoRegistro].sort(ordenarRegistros));
 
               setSelectedLocal('');
@@ -806,12 +833,10 @@
             setError('');
             setSuccess('');
 
-            // Determinar si es una corrección de día anterior
             const fechaRegistro = editandoRegistro.fecha ? obtenerFechaLocal(editandoRegistro.fecha) : null;
             const hoy = obtenerHoy();
             const esCorreccionPasada = fechaRegistro && fechaRegistro !== hoy;
 
-            // Pasar el registro que estamos editando para excluirlo de la validación
             const errorValidacion = validarLectura(editLectura, editandoRegistro.local, editandoRegistro, esCorreccionPasada);
             if (errorValidacion) {
               setError(errorValidacion);
@@ -841,7 +866,6 @@
                   });
                 } catch (firebaseError) {
                   console.warn('Error actualizando en Firebase:', firebaseError);
-                  // Si es un registro offline, actualizar localmente
                   if (editandoRegistro.id) {
                     const registrosLocales = cargarRegistrosLocales();
                     const nuevosRegistros = registrosLocales.map(r => 
@@ -852,7 +876,6 @@
                   }
                 }
               } else if (editandoRegistro.id) {
-                // Actualizar registro offline
                 const registrosLocales = cargarRegistrosLocales();
                 const nuevosRegistros = registrosLocales.map(r => 
                   r.id === editandoRegistro.id ? registroActualizado : r
@@ -868,7 +891,6 @@
                     : r
                 ));
 
-                // Solo actualizar última lectura si el registro es de hoy
                 if (!esCorreccionPasada) {
                   const localesActualizados = locales.map(l => 
                     String(l.numero) === String(editandoRegistro.local)
@@ -910,13 +932,11 @@
                   eliminado = await eliminarRegistroFirebase(registro.firebaseId);
                 } catch (firebaseError) {
                   console.warn('Error eliminando en Firebase:', firebaseError);
-                  // Si es un registro offline, eliminar localmente
                   if (registro.id) {
                     eliminado = eliminarRegistroLocal(registro.id);
                   }
                 }
               } else if (registro.id) {
-                // Eliminar registro offline
                 eliminado = eliminarRegistroLocal(registro.id);
               }
 
@@ -946,7 +966,6 @@
             
             let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
             
-            // Ordenar registros para el Excel
             const registrosOrdenados = [...registrosHoy].sort(ordenarRegistros);
             
             registrosOrdenados.forEach(r => {
@@ -955,17 +974,13 @@
               const horaStr = fecha.toLocaleTimeString('es-EC');
               const tieneFoto = r.foto ? 'Sí' : 'No';
               
-              // FORMATO CORREGIDO: Reemplazar punto por coma para decimales
-              // y formatear números grandes sin separadores de miles
               let lecturaFormateada;
               if (r.lectura !== undefined && r.lectura !== null) {
-                // Convertir a número y formatear con comas para decimales
                 const numero = parseFloat(r.lectura);
-                // Usar 3 decimales como máximo
                 lecturaFormateada = numero.toLocaleString('es-ES', {
                   minimumFractionDigits: 1,
                   maximumFractionDigits: 3,
-                  useGrouping: false // Sin separadores de miles
+                  useGrouping: false
                 });
               } else {
                 lecturaFormateada = '0';
@@ -990,14 +1005,12 @@
             window.URL.revokeObjectURL(url);
           };
 
-          // FUNCIÓN PARA EXPORTAR POR FECHAS
           const exportarExcelPorFechas = () => {
             if (!fechaInicio) {
               setError('Por favor seleccione una fecha de inicio');
               return;
             }
 
-            // Si no se selecciona fecha fin, usar la misma fecha de inicio
             const fechaFinSeleccionada = fechaFin || fechaInicio;
             
             const registrosFiltrados = registros.filter(r => {
@@ -1013,7 +1026,6 @@
 
             let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
             
-            // Ordenar registros para el Excel
             const registrosOrdenados = [...registrosFiltrados].sort(ordenarRegistros);
             
             registrosOrdenados.forEach(r => {
@@ -1022,17 +1034,13 @@
               const horaStr = fecha.toLocaleTimeString('es-EC');
               const tieneFoto = r.foto ? 'Sí' : 'No';
               
-              // FORMATO CORREGIDO: Reemplazar punto por coma para decimales
-              // y formatear números grandes sin separadores de miles
               let lecturaFormateada;
               if (r.lectura !== undefined && r.lectura !== null) {
-                // Convertir a número y formatear con comas para decimales
                 const numero = parseFloat(r.lectura);
-                // Usar 3 decimales como máximo
                 lecturaFormateada = numero.toLocaleString('es-ES', {
                   minimumFractionDigits: 1,
                   maximumFractionDigits: 3,
-                  useGrouping: false // Sin separadores de miles
+                  useGrouping: false
                 });
               } else {
                 lecturaFormateada = '0';
@@ -1077,7 +1085,6 @@
             };
           };
 
-          // Buscar registros para corrección
           const buscarRegistrosCorreccion = () => {
             if (!fechaCorreccion || !localCorreccion) {
               setError('Debe seleccionar una fecha y un local para buscar');
@@ -1093,7 +1100,225 @@
             });
           };
 
-          // SIN .sort() - Mantiene el orden original de localesData
+          // ========== NUEVAS FUNCIONES PARA DASHBOARD ADMIN ==========
+
+          const calcularConsumoMensual = () => {
+            const consumoPorMes = {};
+            
+            registros.forEach(r => {
+              if (!r.fecha || !r.lectura) return;
+              
+              const fecha = new Date(r.fecha);
+              const mes = fecha.getMonth();
+              const anio = fecha.getFullYear();
+              const key = `${anio}-${mes}`;
+              
+              const local = locales.find(l => String(l.numero) === String(r.local));
+              if (local && local.ultimaLectura) {
+                const consumo = r.lectura - local.ultimaLectura;
+                if (consumo > 0 && consumo < 10000) {
+                  if (!consumoPorMes[key]) {
+                    consumoPorMes[key] = { mes, anio, total: 0, registros: 0 };
+                  }
+                  consumoPorMes[key].total += consumo;
+                  consumoPorMes[key].registros++;
+                }
+              }
+            });
+            
+            return Object.values(consumoPorMes).sort((a, b) => {
+              if (a.anio !== b.anio) return a.anio - b.anio;
+              return a.mes - b.mes;
+            });
+          };
+
+          const calcularTop10Consumo = () => {
+            const consumoPorLocal = {};
+            
+            registros.forEach(r => {
+              if (!r.fecha || !r.lectura) return;
+              
+              const local = locales.find(l => String(l.numero) === String(r.local));
+              if (local && local.ultimaLectura) {
+                const consumo = r.lectura - local.ultimaLectura;
+                if (consumo > 0 && consumo < 10000) {
+                  if (!consumoPorLocal[r.local]) {
+                    consumoPorLocal[r.local] = {
+                      local: r.local,
+                      inquilino: r.inquilino,
+                      consumoTotal: 0,
+                      registros: 0
+                    };
+                  }
+                  consumoPorLocal[r.local].consumoTotal += consumo;
+                  consumoPorLocal[r.local].registros++;
+                }
+              }
+            });
+            
+            return Object.values(consumoPorLocal)
+              .sort((a, b) => b.consumoTotal - a.consumoTotal)
+              .slice(0, 10);
+          };
+
+          const detectarAnomalias = () => {
+            const anomalias = [];
+            const hoy = obtenerHoy();
+            
+            registros.forEach(r => {
+              if (!r.fecha || !r.lectura) return;
+              
+              const fechaRegistro = obtenerFechaLocal(r.fecha);
+              const diasDiferencia = (new Date(hoy) - new Date(fechaRegistro)) / (1000 * 60 * 60 * 24);
+              if (diasDiferencia > 7) return;
+              
+              const local = locales.find(l => String(l.numero) === String(r.local));
+              if (!local || !local.ultimaLectura) return;
+              
+              const consumo = r.lectura - local.ultimaLectura;
+              
+              if (consumo < 0) {
+                anomalias.push({
+                  tipo: 'error',
+                  local: r.local,
+                  inquilino: r.inquilino,
+                  mensaje: `Lectura menor a la anterior (${local.ultimaLectura} → ${r.lectura})`,
+                  fecha: fechaRegistro,
+                  severidad: 'alta'
+                });
+              } else if (consumo > 500) {
+                anomalias.push({
+                  tipo: 'warning',
+                  local: r.local,
+                  inquilino: r.inquilino,
+                  mensaje: `Consumo muy alto: ${consumo.toFixed(2)} m³`,
+                  fecha: fechaRegistro,
+                  severidad: 'alta'
+                });
+              } else if (consumo > 200) {
+                anomalias.push({
+                  tipo: 'warning',
+                  local: r.local,
+                  inquilino: r.inquilino,
+                  mensaje: `Consumo elevado: ${consumo.toFixed(2)} m³`,
+                  fecha: fechaRegistro,
+                  severidad: 'media'
+                });
+              } else if (consumo === 0) {
+                anomalias.push({
+                  tipo: 'info',
+                  local: r.local,
+                  inquilino: r.inquilino,
+                  mensaje: 'Sin consumo detectado',
+                  fecha: fechaRegistro,
+                  severidad: 'baja'
+                });
+              }
+            });
+            
+            return anomalias.sort((a, b) => {
+              const severidadOrden = { alta: 0, media: 1, baja: 2 };
+              return severidadOrden[a.severidad] - severidadOrden[b.severidad];
+            });
+          };
+
+          const obtenerHistorialCorrecciones = () => {
+            return registros
+              .filter(r => r.fechaCorreccion)
+              .sort((a, b) => new Date(b.fechaCorreccion) - new Date(a.fechaCorreccion))
+              .slice(0, 50);
+          };
+
+          const generarCalendarioMes = () => {
+            const primerDia = new Date(anioSeleccionado, mesSeleccionado, 1);
+            const ultimoDia = new Date(anioSeleccionado, mesSeleccionado + 1, 0);
+            const dias = [];
+            
+            const diaSemanaInicio = primerDia.getDay();
+            for (let i = 0; i < diaSemanaInicio; i++) {
+              dias.push(null);
+            }
+            
+            for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
+              const fecha = `${anioSeleccionado}-${String(mesSeleccionado + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+              const registrosDia = registros.filter(r => {
+                if (!r.fecha) return false;
+                return obtenerFechaLocal(r.fecha) === fecha;
+              });
+              
+              const porcentaje = (registrosDia.length / locales.length) * 100;
+              let estado = 'empty';
+              if (porcentaje >= 90) estado = 'complete';
+              else if (porcentaje >= 50) estado = 'partial';
+              
+              dias.push({
+                dia,
+                fecha,
+                registros: registrosDia.length,
+                total: locales.length,
+                porcentaje: Math.round(porcentaje),
+                estado
+              });
+            }
+            
+            return dias;
+          };
+
+          useEffect(() => {
+            if (activeTab === 'dashboard' && chartRef.current) {
+              if (chartInstance.current) {
+                chartInstance.current.destroy();
+              }
+
+              const consumoMensual = calcularConsumoMensual();
+              const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+              
+              const ctx = chartRef.current.getContext('2d');
+              chartInstance.current = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                  labels: consumoMensual.map(c => `${meses[c.mes]} ${c.anio}`),
+                  datasets: [{
+                    label: 'Consumo Total (m³)',
+                    data: consumoMensual.map(c => c.total.toFixed(2)),
+                    backgroundColor: 'rgba(145, 150, 119, 0.6)',
+                    borderColor: 'rgba(145, 150, 119, 1)',
+                    borderWidth: 2
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      display: true,
+                      position: 'top',
+                    },
+                    title: {
+                      display: true,
+                      text: 'Consumo Mensual de Agua'
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      title: {
+                        display: true,
+                        text: 'Metros Cúbicos (m³)'
+                      }
+                    }
+                  }
+                }
+              });
+            }
+
+            return () => {
+              if (chartInstance.current) {
+                chartInstance.current.destroy();
+              }
+            };
+          }, [activeTab, registros, locales]);
+
           const filteredLocales = locales.filter(local => {
             const search = searchTerm.toLowerCase();
             return (
@@ -1102,6 +1327,7 @@
             );
           });
 
+          // ========== RENDERIZADO DE LOGIN ==========
           if (!user) {
             return (
               <div className="min-h-screen bg-azul-lgm flex items-center justify-center p-4">
@@ -1192,7 +1418,6 @@
                     <p className="font-semibold mb-2">Credenciales de acceso:</p>
                     <p><strong>Guardias:</strong> usuario: guardia | contraseña: 1234</p>
                     <p className="text-xs text-gray-500 mt-1">* Después de ingresar usuario y contraseña, escriba su nombre completo</p>
-                    
                   </div>
 
                   {!firebaseInitialized && (
@@ -1206,6 +1431,7 @@
             );
           }
 
+          // ========== RENDERIZADO DE PANEL ADMIN CON TABS ==========
           if (view === 'admin') {
             const progreso = calcularProgreso();
             const hoy = obtenerHoy();
@@ -1215,9 +1441,16 @@
               return fechaRegistro === hoy;
             });
 
+            const top10 = calcularTop10Consumo();
+            const anomalias = detectarAnomalias();
+            const historialCorrecciones = obtenerHistorialCorrecciones();
+            const calendarioDias = generarCalendarioMes();
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
             return (
               <div className="min-h-screen bg-gray-50 p-4">
                 <div className="max-w-7xl mx-auto">
+                  {/* HEADER */}
                   <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-gray-200">
                     <div className="flex justify-between items-center mb-6">
                       <div>
@@ -1258,6 +1491,7 @@
                       </div>
                     )}
 
+                    {/* TARJETAS DE RESUMEN */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                       <div className="bg-azul-lgm text-white p-4 rounded-xl shadow-lg">
                         <div className="flex items-center gap-3">
@@ -1299,207 +1533,478 @@
                       </div>
                     </div>
 
-                    {/* BOTÓN DE SINCRONIZACIÓN MANUAL */}
-                    {!isOnline && (
-                      <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold text-yellow-800">Modo Offline</p>
-                            <p className="text-sm text-yellow-700">Los registros se guardan localmente</p>
-                          </div>
-                          <button
-                            onClick={sincronizarRegistrosOffline}
-                            disabled={syncing || !isOnline}
-                            className="flex items-center gap-2 px-4 py-2 bg-azul-lgm hover:bg-[#1a1f45] disabled:bg-gray-400 text-white rounded-xl transition-all"
-                          >
-                            <CloudUpload className="w-4 h-4" />
-                            {syncing ? 'Sincronizando...' : 'Sincronizar'}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* SECCIÓN PARA EXPORTAR POR FECHAS */}
-                    <div className="bg-blue-50 p-6 rounded-xl mb-6 border border-blue-200">
-                      <h3 className="text-xl font-bold text-azul-lgm mb-4 flex items-center gap-2">
-                        <Calendar className="w-6 h-6" />
-                        Exportar Registros por Fechas
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Fecha de Inicio *
-                          </label>
-                          <input
-                            type="date"
-                            value={fechaInicio}
-                            onChange={(e) => setFechaInicio(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Fecha de Fin (opcional)
-                          </label>
-                          <input
-                            type="date"
-                            value={fechaFin}
-                            onChange={(e) => setFechaFin(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Si no selecciona fecha fin, se exportará solo la fecha de inicio
-                          </p>
-                        </div>
-                        
-                        <div className="flex items-end">
-                          <button
-                            onClick={exportarExcelPorFechas}
-                            disabled={!fechaInicio}
-                            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-azul-lgm hover:bg-[#1a1f45] disabled:bg-gray-400 text-white rounded-xl transition-all transform hover:scale-105 font-semibold shadow-lg"
-                          >
-                            <Download className="w-5 h-5" />
-                            Exportar por Fechas
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className="text-sm text-gray-600">
-                        <p><strong>Nota:</strong> El archivo se descargará en formato CSV compatible con Excel.</p>
-                        <p>Incluye todos los registros del rango de fechas seleccionado.</p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-4">
+                    {/* TABS DE NAVEGACIÓN */}
+                    <div className="flex flex-wrap gap-2">
                       <button
-                        onClick={exportarExcel}
-                        disabled={registrosHoy.length === 0}
-                        className="flex items-center gap-2 px-6 py-3 bg-verde-lgm hover:bg-[#7a8560] disabled:bg-gray-400 text-white rounded-xl transition-all transform hover:scale-105 font-semibold shadow-lg"
+                        onClick={() => setActiveTab('registros')}
+                        className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'registros' ? 'tab-active' : 'tab-inactive hover:bg-gray-200'}`}
                       >
-                        <Download className="w-5 h-5" />
-                        Exportar Hoy ({registrosHoy.length} registros)
+                        📋 Registros
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('dashboard')}
+                        className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'dashboard' ? 'tab-active' : 'tab-inactive hover:bg-gray-200'}`}
+                      >
+                        📈 Dashboard
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('alertas')}
+                        className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'alertas' ? 'tab-active' : 'tab-inactive hover:bg-gray-200'}`}
+                      >
+                        ⚠️ Alertas
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('historial')}
+                        className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'historial' ? 'tab-active' : 'tab-inactive hover:bg-gray-200'}`}
+                      >
+                        🕐 Correcciones
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('calendario')}
+                        className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'calendario' ? 'tab-active' : 'tab-inactive hover:bg-gray-200'}`}
+                      >
+                        📅 Calendario
                       </button>
                     </div>
-                    
-                    {registrosHoy.length > 0 && (
-                      <p className="text-sm text-gray-600 mt-2">
-                        El archivo se descargará con todas las columnas organizadas para abrir en Excel.
-                      </p>
-                    )}
                   </div>
 
-                  <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                      Registros de Hoy 
-                      <span className="text-sm font-normal text-gray-600 ml-2">
-                        {firebaseInitialized ? '(Tiempo Real)' : '(Modo Local)'}
-                      </span>
-                    </h2>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Local</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Inquilino</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Lectura</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Hora</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Guardia</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Foto</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {registrosHoy.length === 0 ? (
-                            <tr>
-                              <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
-                                No hay registros para hoy
-                              </td>
-                            </tr>
-                          ) : (
-                            registrosHoy
-                              .sort(ordenarRegistros) // Ordenar registros en la tabla
-                              .map(r => (
-                                <tr key={r.firebaseId || r.id} className="hover:bg-gray-50 transition-colors">
-                                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
-                                  <td className="px-4 py-3 text-sm text-gray-700 font-semibold">
-                                    {r.lectura} m³
-                                    {r.lecturaAnterior && (
-                                      <div className="text-xs text-red-600">
-                                        Corregido: {r.lecturaAnterior} m³ → {r.lectura} m³
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}
-                                    {r.fechaCorreccion && (
-                                      <div className="text-xs text-blue-600">
-                                        Corregido: {new Date(r.fechaCorreccion).toLocaleTimeString()}
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {r.guardia}
-                                    {r.corregidoPor && r.corregidoPor !== r.guardia && (
-                                      <div className="text-xs text-blue-600">
-                                        Corregido por: {r.corregidoPor}
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    {r.foto ? (
-                                      <img src={r.foto} alt="Medidor" className="w-16 h-16 object-cover rounded-lg cursor-pointer shadow-sm" 
-                                           onClick={() => window.open(r.foto, '_blank')} />
-                                    ) : (
-                                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Sin foto</span>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    {r.firebaseId ? (
-                                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                                        <Wifi className="w-3 h-3" />
-                                        En Firebase
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
-                                        <WifiOff className="w-3 h-3" />
-                                        Local
-                                      </span>
-                                    )}
-                                    {r.fechaCorreccion && (
-                                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mt-1">
-                                        Corregido
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={() => iniciarEdicion(r)}
-                                        className="flex items-center gap-1 px-3 py-1 bg-azul-lgm hover:bg-[#1a1f45] text-white rounded-lg text-xs transition-colors"
-                                      >
-                                        <Edit className="w-3 h-3" />
-                                        Editar
-                                      </button>
-                                      <button
-                                        onClick={() => eliminarRegistro(r)}
-                                        className="flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs transition-colors"
-                                      >
-                                        <Trash className="w-3 h-3" />
-                                        Eliminar
-                                      </button>
-                                    </div>
+                  {/* TAB: REGISTROS */}
+                  {activeTab === 'registros' && (
+                    <div>
+                      {!isOnline && (
+                        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold text-yellow-800">Modo Offline</p>
+                              <p className="text-sm text-yellow-700">Los registros se guardan localmente</p>
+                            </div>
+                            <button
+                              onClick={sincronizarRegistrosOffline}
+                              disabled={syncing || !isOnline}
+                              className="flex items-center gap-2 px-4 py-2 bg-azul-lgm hover:bg-[#1a1f45] disabled:bg-gray-400 text-white rounded-xl transition-all"
+                            >
+                              <CloudUpload className="w-4 h-4" />
+                              {syncing ? 'Sincronizando...' : 'Sincronizar'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="bg-blue-50 p-6 rounded-xl mb-6 border border-blue-200">
+                        <h3 className="text-xl font-bold text-azul-lgm mb-4 flex items-center gap-2">
+                          <Calendar className="w-6 h-6" />
+                          Exportar Registros por Fechas
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Fecha de Inicio *
+                            </label>
+                            <input
+                              type="date"
+                              value={fechaInicio}
+                              onChange={(e) => setFechaInicio(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Fecha de Fin (opcional)
+                            </label>
+                            <input
+                              type="date"
+                              value={fechaFin}
+                              onChange={(e) => setFechaFin(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Si no selecciona fecha fin, se exportará solo la fecha de inicio
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-end">
+                            <button
+                              onClick={exportarExcelPorFechas}
+                              disabled={!fechaInicio}
+                              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-azul-lgm hover:bg-[#1a1f45] disabled:bg-gray-400 text-white rounded-xl transition-all transform hover:scale-105 font-semibold shadow-lg"
+                            >
+                              <Download className="w-5 h-5" />
+                              Exportar por Fechas
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="text-sm text-gray-600">
+                          <p><strong>Nota:</strong> El archivo se descargará en formato CSV compatible con Excel.</p>
+                          <p>Incluye todos los registros del rango de fechas seleccionado.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-4 mb-6">
+                        <button
+                          onClick={exportarExcel}
+                          disabled={registrosHoy.length === 0}
+                          className="flex items-center gap-2 px-6 py-3 bg-verde-lgm hover:bg-[#7a8560] disabled:bg-gray-400 text-white rounded-xl transition-all transform hover:scale-105 font-semibold shadow-lg"
+                        >
+                          <Download className="w-5 h-5" />
+                          Exportar Hoy ({registrosHoy.length} registros)
+                        </button>
+                      </div>
+
+                      <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                          Registros de Hoy 
+                          <span className="text-sm font-normal text-gray-600 ml-2">
+                            {firebaseInitialized ? '(Tiempo Real)' : '(Modo Local)'}
+                          </span>
+                        </h2>
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Local</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Inquilino</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Lectura</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Hora</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Guardia</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Foto</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {registrosHoy.length === 0 ? (
+                                <tr>
+                                  <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
+                                    No hay registros para hoy
                                   </td>
                                 </tr>
-                              ))
-                          )}
-                        </tbody>
-                      </table>
+                              ) : (
+                                registrosHoy
+                                  .sort(ordenarRegistros)
+                                  .map(r => (
+                                    <tr key={r.firebaseId || r.id} className="hover:bg-gray-50 transition-colors">
+                                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
+                                      <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
+                                      <td className="px-4 py-3 text-sm text-gray-700 font-semibold">
+                                        {r.lectura} m³
+                                        {r.lecturaAnterior && (
+                                          <div className="text-xs text-red-600">
+                                            Corregido: {r.lecturaAnterior} m³ → {r.lectura} m³
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 text-sm text-gray-700">
+                                        {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}
+                                        {r.fechaCorreccion && (
+                                          <div className="text-xs text-blue-600">
+                                            Corregido: {new Date(r.fechaCorreccion).toLocaleTimeString()}
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 text-sm text-gray-700">
+                                        {r.guardia}
+                                        {r.corregidoPor && r.corregidoPor !== r.guardia && (
+                                          <div className="text-xs text-blue-600">
+                                            Corregido por: {r.corregidoPor}
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        {r.foto ? (
+                                          <img src={r.foto} alt="Medidor" className="w-16 h-16 object-cover rounded-lg cursor-pointer shadow-sm" 
+                                               onClick={() => window.open(r.foto, '_blank')} />
+                                        ) : (
+                                          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Sin foto</span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        {r.firebaseId ? (
+                                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                            <Wifi className="w-3 h-3" />
+                                            En Firebase
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                                            <WifiOff className="w-3 h-3" />
+                                            Local
+                                          </span>
+                                        )}
+                                        {r.fechaCorreccion && (
+                                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mt-1">
+                                            Corregido
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <div className="flex gap-2">
+                                          <button
+                                            onClick={() => iniciarEdicion(r)}
+                                            className="flex items-center gap-1 px-3 py-1 bg-azul-lgm hover:bg-[#1a1f45] text-white rounded-lg text-xs transition-colors"
+                                          >
+                                            <Edit className="w-3 h-3" />
+                                            Editar
+                                          </button>
+                                          <button
+                                            onClick={() => eliminarRegistro(r)}
+                                            className="flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs transition-colors"
+                                          >
+                                            <Trash className="w-3 h-3" />
+                                            Eliminar
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* TAB: DASHBOARD */}
+                  {activeTab === 'dashboard' && (
+                    <div className="space-y-6">
+                      {/* GRÁFICO DE CONSUMO MENSUAL */}
+                      <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                          <BarChart className="w-6 h-6 text-verde-lgm" />
+                          Consumo Mensual de Agua
+                        </h2>
+                        <div style={{ height: '400px' }}>
+                          <canvas ref={chartRef}></canvas>
+                        </div>
+                      </div>
+
+                      {/* TOP 10 LOCALES */}
+                      <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                          <Award className="w-6 h-6 text-yellow-500" />
+                          Top 10 Locales con Mayor Consumo
+                        </h2>
+                        {top10.length === 0 ? (
+                          <p className="text-center text-gray-500 py-8">No hay datos suficientes para mostrar el top 10</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {top10.map((item, index) => (
+                              <div key={item.local} className="flex items-center justify-between p-4 bg-gradient-to-r from-verde-lgm to-azul-lgm text-white rounded-xl shadow-md">
+                                <div className="flex items-center gap-4">
+                                  <div className="bg-white text-azul-lgm w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg">
+                                    {index + 1}
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-lg">Local {item.local} - {item.inquilino}</p>
+                                    <p className="text-sm opacity-90">{item.registros} registros</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-2xl font-bold">{item.consumoTotal.toFixed(2)} m³</p>
+                                  <p className="text-sm opacity-90">consumo total</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB: ALERTAS */}
+                  {activeTab === 'alertas' && (
+                    <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                        <AlertTriangle className="w-6 h-6 text-red-500" />
+                        Alertas de Lecturas Anómalas (Últimos 7 días)
+                      </h2>
+                      {anomalias.length === 0 ? (
+                        <div className="text-center py-12">
+                          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                          <p className="text-xl font-semibold text-gray-700">¡Todo en orden!</p>
+                          <p className="text-gray-500">No se detectaron anomalías en las lecturas recientes</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {anomalias.map((alerta, index) => {
+                            let bgColor = 'bg-gray-50';
+                            let borderColor = 'border-gray-200';
+                            let iconColor = 'text-gray-600';
+                            
+                            if (alerta.severidad === 'alta') {
+                              bgColor = 'bg-red-50';
+                              borderColor = 'border-red-300';
+                              iconColor = 'text-red-600';
+                            } else if (alerta.severidad === 'media') {
+                              bgColor = 'bg-yellow-50';
+                              borderColor = 'border-yellow-300';
+                              iconColor = 'text-yellow-600';
+                            } else {
+                              bgColor = 'bg-blue-50';
+                              borderColor = 'border-blue-300';
+                              iconColor = 'text-blue-600';
+                            }
+                            
+                            return (
+                              <div key={index} className={`${bgColor} border ${borderColor} p-4 rounded-xl`}>
+                                <div className="flex items-start gap-3">
+                                  <AlertTriangle className={`w-6 h-6 ${iconColor} flex-shrink-0 mt-1`} />
+                                  <div className="flex-1">
+                                    <div className="flex justify-between items-start mb-2">
+                                      <div>
+                                        <p className="font-semibold text-gray-800">
+                                          Local {alerta.local} - {alerta.inquilino}
+                                        </p>
+                                        <p className="text-sm text-gray-600">{alerta.mensaje}</p>
+                                      </div>
+                                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                        alerta.severidad === 'alta' ? 'bg-red-200 text-red-800' :
+                                        alerta.severidad === 'media' ? 'bg-yellow-200 text-yellow-800' :
+                                        'bg-blue-200 text-blue-800'
+                                      }`}>
+                                        {alerta.severidad.toUpperCase()}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500">Fecha: {alerta.fecha}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TAB: HISTORIAL DE CORRECCIONES */}
+                  {activeTab === 'historial' && (
+                    <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                        <History className="w-6 h-6 text-blue-600" />
+                        Historial de Correcciones (Últimas 50)
+                      </h2>
+                      {historialCorrecciones.length === 0 ? (
+                        <p className="text-center text-gray-500 py-12">No hay correcciones registradas</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Fecha Corrección</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Local</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Inquilino</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Lectura Original</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Lectura Corregida</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Corregido Por</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Fecha Original</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {historialCorrecciones.map((r, index) => (
+                                <tr key={r.firebaseId || r.id || index} className="hover:bg-gray-50 transition-colors">
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    {new Date(r.fechaCorreccion).toLocaleString('es-EC')}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
+                                  <td className="px-4 py-3 text-sm text-red-600 font-semibold">
+                                    {r.lecturaAnterior} m³
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-green-600 font-semibold">
+                                    {r.lectura} m³
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">{r.corregidoPor}</td>
+                                  <td className="px-4 py-3 text-sm text-gray-500">
+                                    {r.fecha ? new Date(r.fecha).toLocaleDateString('es-EC') : 'N/A'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TAB: CALENDARIO */}
+                  {activeTab === 'calendario' && (
+                    <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                      <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                          <Calendar className="w-6 h-6 text-verde-lgm" />
+                          Calendario de Lecturas
+                        </h2>
+                        <div className="flex items-center gap-3">
+                          <select
+                            value={mesSeleccionado}
+                            onChange={(e) => setMesSeleccionado(parseInt(e.target.value))}
+                            className="px-4 py-2 border border-gray-300 rounded-lg"
+                          >
+                            {meses.map((mes, index) => (
+                              <option key={index} value={index}>{mes}</option>
+                            ))}
+                          </select>
+                          <select
+                            value={anioSeleccionado}
+                            onChange={(e) => setAnioSeleccionado(parseInt(e.target.value))}
+                            className="px-4 py-2 border border-gray-300 rounded-lg"
+                          >
+                            {[2023, 2024, 2025, 2026].map(anio => (
+                              <option key={anio} value={anio}>{anio}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Leyenda */}
+                      <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-green-200 border border-green-400 rounded"></div>
+                          <span className="text-sm text-gray-700">≥ 90% completado</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-yellow-200 border border-yellow-400 rounded"></div>
+                          <span className="text-sm text-gray-700">50-89% completado</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-red-200 border border-red-400 rounded"></div>
+                          <span className="text-sm text-gray-700">{'<'} 50% completado</span>
+                        </div>
+                      </div>
+
+                      {/* Calendario */}
+                      <div className="grid grid-cols-7 gap-2">
+                        {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(dia => (
+                          <div key={dia} className="text-center font-semibold text-gray-700 py-2">
+                            {dia}
+                          </div>
+                        ))}
+                        {calendarioDias.map((dia, index) => {
+                          if (!dia) {
+                            return <div key={`empty-${index}`} className="calendar-day"></div>;
+                          }
+                          
+                          let estadoClass = 'calendar-day-empty';
+                          if (dia.estado === 'complete') estadoClass = 'calendar-day-complete';
+                          else if (dia.estado === 'partial') estadoClass = 'calendar-day-partial';
+                          
+                          return (
+                            <div key={dia.dia} className={`calendar-day ${estadoClass} p-2 rounded-lg cursor-pointer hover:shadow-md transition-shadow`}>
+                              <div className="font-bold text-gray-800">{dia.dia}</div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                {dia.registros}/{dia.total}
+                              </div>
+                              <div className="text-xs font-semibold text-gray-700 mt-1">
+                                {dia.porcentaje}%
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Modal de Edición */}
@@ -1557,6 +2062,7 @@
             );
           }
 
+          // ========== VISTA DE GUARDIA ==========
           const progreso = calcularProgreso();
 
           return (
@@ -1858,7 +2364,7 @@
                         const fechaRegistro = obtenerFechaLocal(r.fecha);
                         return r.username === user.username && fechaRegistro === fechaFiltroGuardia;
                       })
-                      .sort(ordenarRegistros) // Ordenar registros del guardia
+                      .sort(ordenarRegistros)
                       .map(r => (
                         <div key={r.firebaseId || r.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
                           <div className="flex-1">
@@ -1986,3 +2492,5 @@
     </script>
 </body>
 </html>
+</html>
+
