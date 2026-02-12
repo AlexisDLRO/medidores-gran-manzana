@@ -2,252 +2,74 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Sistema de Registro de Medidores de Agua - La Gran Manzana">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Sistema de Registro de Medidores de Agua - La Gran Manzana (Ultra Optimizado)">
     <title>La Gran Manzana - Medidores</title>
+    <!-- React 18 production -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com/3.3.0"></script>
-    <!-- Firebase SDK -->
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-    <!-- Chart.js para gráficos -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-        }
-        .logo-text {
-            color: #252b5d;
-        }
-        .bg-verde-lgm {
-            background-color: #919677;
-        }
-        .bg-azul-lgm {
-            background-color: #252b5d;
-        }
-        .text-verde-lgm {
-            color: #919677;
-        }
-        .text-azul-lgm {
-            color: #252b5d;
-        }
-        .border-verde-lgm {
-            border-color: #919677;
-        }
-        .border-azul-lgm {
-            border-color: #252b5d;
-        }
-        .tab-active {
-            background-color: #252b5d;
-            color: white;
-        }
-        .tab-inactive {
-            background-color: #f3f4f6;
-            color: #6b7280;
-        }
-        .calendar-day {
-            min-height: 80px;
-            border: 1px solid #e5e7eb;
-        }
-        .calendar-day-complete {
-            background-color: #d1fae5;
-        }
-        .calendar-day-partial {
-            background-color: #fef3c7;
-        }
-        .calendar-day-empty {
-            background-color: #fee2e2;
-        }
+        body { margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f9fafb; }
+        .bg-verde-lgm { background-color: #919677; }
+        .bg-azul-lgm { background-color: #252b5d; }
+        .text-verde-lgm { color: #919677; }
+        .text-azul-lgm { color: #252b5d; }
+        .border-verde-lgm { border-color: #919677; }
+        .border-azul-lgm { border-color: #252b5d; }
+        .tab-active { background-color: #252b5d; color: white; }
+        .tab-inactive { background-color: #f3f4f6; color: #6b7280; }
+        .calendar-day { min-height: 80px; border:1px solid #e5e7eb; }
+        .calendar-day-complete { background-color: #d1fae5; }
+        .calendar-day-partial { background-color: #fef3c7; }
+        .calendar-day-empty { background-color: #fee2e2; }
     </style>
 </head>
 <body>
     <div id="root"></div>
-    
+
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo, useCallback, memo } = React;
 
-        // Configuración de Firebase
-        const firebaseConfig = {
-            databaseURL: "https://lecuturalgm-default-rtdb.firebaseio.com/"
-        };
-
-        // Inicializar Firebase
-        let database;
-        let firebaseInitialized = false;
+        // ---------- FIREBASE ----------
+        const firebaseConfig = { databaseURL: "https://lecuturalgm-default-rtdb.firebaseio.com/" };
+        let database, firebaseInitialized = false;
         try {
-            const app = firebase.initializeApp(firebaseConfig);
+            firebase.initializeApp(firebaseConfig);
             database = firebase.database();
             firebaseInitialized = true;
-            console.log('Firebase inicializado correctamente');
-        } catch (error) {
-            console.error('Error inicializando Firebase:', error);
-            firebaseInitialized = false;
-        }
+            console.log('🔥 Firebase OK');
+        } catch (e) { console.error(e); }
 
-        // ==================== ICONOS ====================
-        const Camera = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-        );
+        // ---------- ICONOS (sin cambios, solo los necesarios) ----------
+        const Camera = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
+        const LogOut = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>;
+        const Download = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>;
+        const AlertCircle = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" strokeWidth={2} /><line x1="12" y1="8" x2="12" y2="12" strokeWidth={2} strokeLinecap="round" /><line x1="12" y1="16" x2="12.01" y2="16" strokeWidth={2} strokeLinecap="round" /></svg>;
+        const CheckCircle = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+        const Clock = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" strokeWidth={2} /><polyline points="12 6 12 12 16 14" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+        const Calendar = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeWidth={2} /><line x1="16" y1="2" x2="16" y2="6" strokeWidth={2} strokeLinecap="round" /><line x1="8" y1="2" x2="8" y2="6" strokeWidth={2} strokeLinecap="round" /><line x1="3" y1="10" x2="21" y2="10" strokeWidth={2} /></svg>;
+        const Search = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" strokeWidth={2} /><path d="m21 21-4.35-4.35" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+        const Wifi = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" /></svg>;
+        const WifiOff = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23" strokeWidth={2} strokeLinecap="round" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.58 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01" /></svg>;
+        const CloudUpload = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>;
+        const Edit = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>;
+        const Trash = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
+        const History = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+        const TrendingUp = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /><polyline points="17 6 23 6 23 12" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+        const Award = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="7" strokeWidth={2} /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+        const AlertTriangle = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>;
+        const BarChart = (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10" strokeWidth={2} strokeLinecap="round" /><line x1="18" y1="20" x2="18" y2="4" strokeWidth={2} strokeLinecap="round" /><line x1="6" y1="20" x2="6" y2="16" strokeWidth={2} strokeLinecap="round" /></svg>;
 
-        const LogOut = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-        );
-
-        const Download = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-        );
-
-        const AlertCircle = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" strokeWidth={2} />
-                <line x1="12" y1="8" x2="12" y2="12" strokeWidth={2} strokeLinecap="round" />
-                <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth={2} strokeLinecap="round" />
-            </svg>
-        );
-
-        const CheckCircle = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        );
-
-        const Clock = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" strokeWidth={2} />
-                <polyline points="12 6 12 12 16 14" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-        );
-
-        const Calendar = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeWidth={2} />
-                <line x1="16" y1="2" x2="16" y2="6" strokeWidth={2} strokeLinecap="round" />
-                <line x1="8" y1="2" x2="8" y2="6" strokeWidth={2} strokeLinecap="round" />
-                <line x1="3" y1="10" x2="21" y2="10" strokeWidth={2} />
-            </svg>
-        );
-
-        const Search = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8" strokeWidth={2} />
-                <path d="m21 21-4.35-4.35" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-        );
-
-        const Wifi = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-            </svg>
-        );
-
-        const WifiOff = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <line x1="1" y1="1" x2="23" y2="23" strokeWidth={2} strokeLinecap="round" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.58 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01" />
-            </svg>
-        );
-
-        const CloudUpload = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-        );
-
-        const Edit = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-        );
-
-        const Trash = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-        );
-
-        const History = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        );
-
-        const TrendingUp = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                <polyline points="17 6 23 6 23 12" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-        );
-
-        const Award = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle cx="12" cy="8" r="7" strokeWidth={2} />
-                <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-        );
-
-        const AlertTriangle = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-        );
-
-        const BarChart = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <line x1="12" y1="20" x2="12" y2="10" strokeWidth={2} strokeLinecap="round" />
-                <line x1="18" y1="20" x2="18" y2="4" strokeWidth={2} strokeLinecap="round" />
-                <line x1="6" y1="20" x2="6" y2="16" strokeWidth={2} strokeLinecap="round" />
-            </svg>
-        );
-
-        const MedidorApp = () => {
-          const [user, setUser] = useState(null);
-          const [view, setView] = useState('login');
-          const [locales, setLocales] = useState([]);
-          const [selectedLocal, setSelectedLocal] = useState('');
-          const [lectura, setLectura] = useState('');
-          const [foto, setFoto] = useState(null);
-          const [registros, setRegistros] = useState([]);
-          const [error, setError] = useState('');
-          const [success, setSuccess] = useState('');
-          const [loading, setLoading] = useState(false);
-          const [loginUsername, setLoginUsername] = useState('');
-          const [loginPassword, setLoginPassword] = useState('');
-          const [nombreGuardia, setNombreGuardia] = useState('');
-          const [searchTerm, setSearchTerm] = useState('');
-          const [isOnline, setIsOnline] = useState(navigator.onLine);
-          const [syncStatus, setSyncStatus] = useState('');
-          const [firebaseError, setFirebaseError] = useState('');
-          const [editandoRegistro, setEditandoRegistro] = useState(null);
-          const [editLectura, setEditLectura] = useState('');
-          const [fechaInicio, setFechaInicio] = useState('');
-          const [fechaFin, setFechaFin] = useState('');
-          const [syncing, setSyncing] = useState(false);
-          const [fechaFiltroGuardia, setFechaFiltroGuardia] = useState('');
-          const [mostrarHistorial, setMostrarHistorial] = useState(false);
-          const [localCorreccion, setLocalCorreccion] = useState('');
-          const [fechaCorreccion, setFechaCorreccion] = useState('');
-
-          // NUEVOS ESTADOS PARA ADMIN DASHBOARD
-          const [activeTab, setActiveTab] = useState('registros');
-          const [mesSeleccionado, setMesSeleccionado] = useState(new Date().getMonth());
-          const [anioSeleccionado, setAnioSeleccionado] = useState(new Date().getFullYear());
-          const chartRef = useRef(null);
-          const chartInstance = useRef(null);
-
-          // Datos de locales
-          const localesData = [
-            {numero: "1-2-3-4", inquilino: "Ancla Izquierda", estado: "Vacía", grupo: true},
+        // ---------- DATOS LOCALES (estático) ----------
+        const localesData = [
+            {numero: "1-2-3-4", inquilino: "Ancla Izquierda", grupo: true},
             {numero: 5, inquilino: "Ancla Izquierda"},
             {numero: 6, inquilino: "Elizabeth Godoy"},
             {numero: 7, inquilino: "Elizabeth Godoy"},
@@ -384,2114 +206,841 @@
             {numero: "MAD-001", inquilino: "Medidor Adicional 001"},
             {numero: "MAD-002", inquilino: "Medidor Adicional 002"},
             {numero: "MAD-003", inquilino: "Medidor Adicional 003"}
-          ];
+        ];
 
-          // Funciones de utilidad
-          const obtenerFechaLocal = (fechaISO) => {
+        // ---------- UTILIDADES ----------
+        const obtenerFechaLocal = (fechaISO) => {
             if (!fechaISO) return '';
             const fecha = new Date(fechaISO);
-            const offset = fecha.getTimezoneOffset() * 60000;
-            const fechaLocal = new Date(fecha.getTime() - offset);
-            return fechaLocal.toISOString().split('T')[0];
-          };
+            return new Date(fecha.getTime() - fecha.getTimezoneOffset()*60000).toISOString().split('T')[0];
+        };
+        const obtenerHoy = () => obtenerFechaLocal(new Date().toISOString());
 
-          const obtenerHoy = () => {
-            const hoy = new Date();
-            return obtenerFechaLocal(hoy.toISOString());
-          };
+        const ordenarLocales = (a, b) => {
+            const ia = localesData.findIndex(l => String(l.numero) === String(a.numero));
+            const ib = localesData.findIndex(l => String(l.numero) === String(b.numero));
+            return ia - ib;
+        };
+        const ordenarRegistros = (a, b) => {
+            const ia = localesData.findIndex(l => String(l.numero) === String(a.local));
+            const ib = localesData.findIndex(l => String(l.numero) === String(b.local));
+            return ia - ib;
+        };
 
-          useEffect(() => {
-            if (user && view === 'registro') {
-              setFechaFiltroGuardia(obtenerHoy());
-            }
-          }, [user, view]);
-
-          const ordenarLocales = (a, b) => {
-            const indexA = localesData.findIndex(local => String(local.numero) === String(a.numero));
-            const indexB = localesData.findIndex(local => String(local.numero) === String(b.numero));
-            return indexA - indexB;
-          };
-
-          const ordenarRegistros = (a, b) => {
-            const indexA = localesData.findIndex(local => String(local.numero) === String(a.local));
-            const indexB = localesData.findIndex(local => String(local.numero) === String(b.local));
-            return indexA - indexB;
-          };
-
-          // Funciones de almacenamiento local
-          const guardarRegistroLocal = (registro) => {
+        // ---------- LOCALSTORAGE ----------
+        const guardarRegistroLocal = (r) => {
             try {
-              const registrosLocales = JSON.parse(localStorage.getItem('registros-offline-gran-manzana') || '[]');
-              registrosLocales.push(registro);
-              localStorage.setItem('registros-offline-gran-manzana', JSON.stringify(registrosLocales));
-              return true;
-            } catch (error) {
-              console.error('Error guardando registro local:', error);
-              return false;
-            }
-          };
-
-          const cargarRegistrosLocales = () => {
+                const regs = JSON.parse(localStorage.getItem('registros-offline-gran-manzana') || '[]');
+                regs.push(r);
+                localStorage.setItem('registros-offline-gran-manzana', JSON.stringify(regs));
+                return true;
+            } catch { return false; }
+        };
+        const cargarRegistrosLocales = () => {
+            try { return JSON.parse(localStorage.getItem('registros-offline-gran-manzana') || '[]'); }
+            catch { return []; }
+        };
+        const eliminarRegistroLocal = (id) => {
             try {
-              const registrosLocales = JSON.parse(localStorage.getItem('registros-offline-gran-manzana') || '[]');
-              return registrosLocales;
-            } catch (error) {
-              console.error('Error cargando registros locales:', error);
-              return [];
-            }
-          };
+                const regs = JSON.parse(localStorage.getItem('registros-offline-gran-manzana') || '[]');
+                localStorage.setItem('registros-offline-gran-manzana', JSON.stringify(regs.filter(r => r.id !== id)));
+                return true;
+            } catch { return false; }
+        };
 
-          const eliminarRegistroLocal = (id) => {
-            try {
-              const registrosLocales = JSON.parse(localStorage.getItem('registros-offline-gran-manzana') || '[]');
-              const nuevosRegistros = registrosLocales.filter(r => r.id !== id);
-              localStorage.setItem('registros-offline-gran-manzana', JSON.stringify(nuevosRegistros));
-              return true;
-            } catch (error) {
-              console.error('Error eliminando registro local:', error);
-              return false;
-            }
-          };
+        let timeoutLocales;
+        const guardarLocalesConDebounce = (locs) => {
+            clearTimeout(timeoutLocales);
+            timeoutLocales = setTimeout(() => {
+                try { localStorage.setItem('locales-gran-manzana', JSON.stringify(locs)); } catch {}
+            }, 2000);
+        };
 
-          const sincronizarRegistrosOffline = async () => {
-            if (!firebaseInitialized || !database || !isOnline) return false;
+        // ---------- IMAGEN ----------
+        const comprimirImagen = (file, maxWidth=600, quality=0.5) => new Promise((res, rej) => {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    if (w > maxWidth) { h *= maxWidth / w; w = maxWidth; }
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    canvas.toBlob(blob => {
+                        const r2 = new FileReader();
+                        r2.onloadend = () => res(r2.result);
+                        r2.onerror = rej;
+                        r2.readAsDataURL(blob);
+                    }, 'image/jpeg', quality);
+                };
+                img.onerror = rej;
+                img.src = e.target.result;
+            };
+            reader.onerror = rej;
+            reader.readAsDataURL(file);
+        });
+        const comprimirImagenNoBloqueante = (file) => new Promise(res => {
+            if ('requestIdleCallback' in window) requestIdleCallback(async () => res(await comprimirImagen(file)), { timeout:2000 });
+            else setTimeout(async () => res(await comprimirImagen(file)), 50);
+        });
 
-            setSyncing(true);
-            setSyncStatus('Sincronizando registros offline...');
-
-            try {
-              const registrosLocales = cargarRegistrosLocales();
-              let sincronizados = 0;
-              let errores = 0;
-
-              for (const registro of registrosLocales) {
-                try {
-                  await guardarRegistroFirebase(registro);
-                  eliminarRegistroLocal(registro.id);
-                  sincronizados++;
-                } catch (error) {
-                  console.error('Error sincronizando registro:', error);
-                  errores++;
-                }
-              }
-
-              setSyncStatus(`Sincronización completada: ${sincronizados} registros sincronizados, ${errores} errores`);
-              setTimeout(() => setSyncStatus(''), 5000);
-
-              if (sincronizados > 0) {
-                cargarRegistrosFirebase();
-              }
-
-              setSyncing(false);
-              return true;
-            } catch (error) {
-              console.error('Error en sincronización:', error);
-              setSyncStatus('Error en sincronización');
-              setTimeout(() => setSyncStatus(''), 5000);
-              setSyncing(false);
-              return false;
-            }
-          };
-
-          const cargarRegistrosFirebase = () => {
+        // ---------- FIREBASE (solo últimos 30 días) ----------
+        const cargarRegistrosRecientes = (callback) => {
             if (!firebaseInitialized || !database) return;
-
-            try {
-              const registrosRef = database.ref('registros');
-              registrosRef.once('value').then((snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                  const registrosArray = Object.keys(data).map(key => ({
-                    firebaseId: key,
-                    ...data[key]
-                  }));
-                  setRegistros(registrosArray.sort(ordenarRegistros));
-                }
-              });
-            } catch (error) {
-              console.error('Error cargando registros de Firebase:', error);
-            }
-          };
-
-          useEffect(() => {
-            loadData();
-            if (firebaseInitialized) {
-              setupFirebaseListeners();
-            }
-            
-            const handleOnline = () => {
-              setIsOnline(true);
-              setSyncStatus('Conectado a Firebase - Sincronizando...');
-              setTimeout(() => {
-                sincronizarRegistrosOffline();
-              }, 2000);
-            };
-            
-            const handleOffline = () => {
-              setIsOnline(false);
-              setSyncStatus('Modo offline - Los datos se guardarán localmente');
-              setTimeout(() => setSyncStatus(''), 5000);
-            };
-            
-            window.addEventListener('online', handleOnline);
-            window.addEventListener('offline', handleOffline);
-            
-            return () => {
-              window.removeEventListener('online', handleOnline);
-              window.removeEventListener('offline', handleOffline);
-            };
-          }, []);
-
-          const setupFirebaseListeners = () => {
-            if (!firebaseInitialized || !database) {
-              setFirebaseError('Firebase no está inicializado');
-              return;
-            }
-
-            try {
-              const registrosRef = database.ref('registros');
-              registrosRef.on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                  const registrosArray = Object.keys(data).map(key => ({
-                    firebaseId: key,
-                    ...data[key]
-                  }));
-                  setRegistros(registrosArray.sort(ordenarRegistros));
-                  setFirebaseError('');
-                } else {
-                  setRegistros([]);
-                }
-              }, (error) => {
-                console.error('Error escuchando registros:', error);
-                setFirebaseError('Error conectando a Firebase: ' + error.message);
-              });
-
-            } catch (error) {
-              console.error('Error configurando listeners:', error);
-              setFirebaseError('Error de conexión con Firebase');
-            }
-          };
-
-          const loadData = () => {
-            try {
-              const initialLocales = localesData.map(l => ({
-                ...l,
-                ultimaLectura: 0,
-                fechaUltimaLectura: null
-              }));
-
-              const localesStorage = localStorage.getItem('locales-gran-manzana');
-              if (localesStorage) {
-                const savedLocales = JSON.parse(localesStorage);
-                savedLocales.forEach(saved => {
-                  const local = initialLocales.find(l => String(l.numero) === String(saved.numero));
-                  if (local && saved.ultimaLectura) {
-                    local.ultimaLectura = saved.ultimaLectura;
-                    local.fechaUltimaLectura = saved.fechaUltimaLectura;
-                  }
-                });
-              }
-
-              setLocales(initialLocales);
-
-              const registrosLocales = cargarRegistrosLocales();
-              if (registrosLocales.length > 0) {
-                setRegistros(prev => [...prev, ...registrosLocales].sort(ordenarRegistros));
-              }
-
-            } catch (err) {
-              console.error('Error cargando datos:', err);
-              setLocales(localesData.map(l => ({
-                ...l,
-                ultimaLectura: 0,
-                fechaUltimaLectura: null
-              })));
-            }
-          };
-
-          const guardarRegistroFirebase = async (registro) => {
-            if (!firebaseInitialized || !database) {
-              throw new Error('Firebase no está disponible');
-            }
-
-            try {
-              const registroRef = database.ref('registros').push();
-              await registroRef.set(registro);
-              return true;
-            } catch (error) {
-              console.error('Error guardando en Firebase:', error);
-              throw error;
-            }
-          };
-
-          const actualizarRegistroFirebase = async (firebaseId, nuevosDatos) => {
-            if (!firebaseInitialized || !database) {
-              throw new Error('Firebase no está disponible');
-            }
-
-            try {
-              await database.ref(`registros/${firebaseId}`).update(nuevosDatos);
-              return true;
-            } catch (error) {
-              console.error('Error actualizando en Firebase:', error);
-              throw error;
-            }
-          };
-
-          const eliminarRegistroFirebase = async (firebaseId) => {
-            if (!firebaseInitialized || !database) {
-              throw new Error('Firebase no está disponible');
-            }
-
-            try {
-              await database.ref(`registros/${firebaseId}`).remove();
-              return true;
-            } catch (error) {
-              console.error('Error eliminando en Firebase:', error);
-              throw error;
-            }
-          };
-
-          const handleLogin = () => {
-            const usuarios = {
-              'guardia': { password: '1234', rol: 'guardia' },
-              'admin': { password: 'admin123', nombre: 'Administrador', rol: 'admin' }
-            };
-
-            if (loginUsername === 'guardia') {
-              if (usuarios[loginUsername].password === loginPassword) {
-                if (!nombreGuardia.trim()) {
-                  setError('Por favor ingrese su nombre completo');
-                  return;
-                }
-                setUser({ username: loginUsername, nombre: nombreGuardia.trim(), rol: 'guardia' });
-                setView('registro');
-                setError('');
-                setLoginUsername('');
-                setLoginPassword('');
-                setNombreGuardia('');
-              } else {
-                setError('Contraseña incorrecta');
-              }
-            } else if (usuarios[loginUsername] && usuarios[loginUsername].password === loginPassword) {
-              setUser({ username: loginUsername, ...usuarios[loginUsername] });
-              setView(usuarios[loginUsername].rol === 'admin' ? 'admin' : 'registro');
-              setError('');
-              setLoginUsername('');
-              setLoginPassword('');
-            } else {
-              setError('Usuario o contraseña incorrectos');
-            }
-          };
-
-          const handleFileChange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-              if (file.size > 5000000) {
-                setError('La foto es muy grande. Máximo 5MB');
-                return;
-              }
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                setFoto(reader.result);
-                setError('');
-              };
-              reader.readAsDataURL(file);
-            }
-          };
-
-          const validarLectura = (lecturaValidar, localValidar, registroExcluido = null, esCorreccion = false) => {
-            const local = locales.find(l => String(l.numero) === String(localValidar));
-            const lecturaNum = parseFloat(lecturaValidar);
-
-            if (!localValidar) return 'Debe seleccionar un local';
-            if (!lecturaValidar || isNaN(lecturaNum)) return 'Debe ingresar una lectura válida';
-            
-            if (!esCorreccion) {
-              if (local.ultimaLectura && lecturaNum < local.ultimaLectura) {
-                return `La lectura no puede ser menor a la anterior (${local.ultimaLectura})`;
-              }
-              if (local.ultimaLectura && lecturaNum > local.ultimaLectura + 1000) {
-                return `La lectura parece muy alta. Anterior: ${local.ultimaLectura}, Nueva: ${lecturaNum}. ¿Está seguro?`;
-              }
-            }
-
-            const hoy = obtenerHoy();
-            const yaRegistrado = registros.find(r => {
-              if (!r.fecha) return false;
-              const fechaRegistro = obtenerFechaLocal(r.fecha);
-              return String(r.local) === String(localValidar) && 
-                     fechaRegistro === hoy &&
-                     (!registroExcluido || 
-                      (r.firebaseId !== registroExcluido.firebaseId && r.id !== registroExcluido.id));
+            const limite = new Date(Date.now() - 30*86400000).toISOString();
+            database.ref('registros').orderByChild('fecha').startAt(limite).once('value', snap => {
+                const data = snap.val();
+                callback(data ? Object.keys(data).map(k => ({ firebaseId: k, ...data[k] })).sort(ordenarRegistros) : []);
             });
-            
-            if (yaRegistrado && !esCorreccion) {
-              return 'Este local ya fue registrado hoy';
-            }
-
-            return null;
-          };
-
-          const handleSubmit = async () => {
-            setLoading(true);
-            setError('');
-            setSuccess('');
-
-            const errorValidacion = validarLectura(lectura, selectedLocal);
-            if (errorValidacion) {
-              setError(errorValidacion);
-              setLoading(false);
-              return;
-            }
-
-            try {
-              const ahora = new Date().toISOString();
-              const lecturaNum = parseFloat(lectura);
-              const localData = locales.find(l => String(l.numero) === String(selectedLocal));
-
-              const nuevoRegistro = {
-                id: Date.now(),
-                local: selectedLocal,
-                inquilino: localData.inquilino,
-                lectura: lecturaNum,
-                foto: foto,
-                fecha: ahora,
-                guardia: user.nombre,
-                username: user.username
-              };
-
-              let guardado = false;
-              
-              if (firebaseInitialized && database && isOnline) {
-                try {
-                  guardado = await guardarRegistroFirebase(nuevoRegistro);
-                  if (guardado) {
-                    setSuccess(`✓ Local ${selectedLocal} - ${localData.inquilino} registrado correctamente`);
-                  }
-                } catch (firebaseError) {
-                  console.warn('Error con Firebase, guardando localmente:', firebaseError);
-                  guardado = guardarRegistroLocal(nuevoRegistro);
-                  if (guardado) {
-                    setSuccess(`✓ Local ${selectedLocal} - ${localData.inquilino} guardado localmente (sin conexión)`);
-                  }
-                }
-              } else {
-                guardado = guardarRegistroLocal(nuevoRegistro);
-                if (guardado) {
-                  setSuccess(`✓ Local ${selectedLocal} - ${localData.inquilino} guardado localmente (modo offline)`);
-                }
-              }
-              
-              if (!guardado) {
-                setError('Error al guardar el registro');
-                setLoading(false);
-                return;
-              }
-
-              const localesActualizados = locales.map(l => 
-                String(l.numero) === String(selectedLocal)
-                  ? { ...l, ultimaLectura: lecturaNum, fechaUltimaLectura: ahora }
-                  : l
-              );
-              
-              localStorage.setItem('locales-gran-manzana', JSON.stringify(localesActualizados));
-              setLocales(localesActualizados);
-
-              setRegistros(prev => [...prev, nuevoRegistro].sort(ordenarRegistros));
-
-              setSelectedLocal('');
-              setLectura('');
-              setFoto(null);
-              setSearchTerm('');
-              
-              const fileInput = document.getElementById('foto-input');
-              if (fileInput) fileInput.value = '';
-
-            } catch (err) {
-              setError('Error al guardar el registro: ' + err.message);
-            } finally {
-              setLoading(false);
-            }
-          };
-
-          const iniciarEdicion = (registro) => {
-            setEditandoRegistro(registro);
-            setEditLectura(registro.lectura);
-          };
-
-          const cancelarEdicion = () => {
-            setEditandoRegistro(null);
-            setEditLectura('');
-          };
-
-          const guardarEdicion = async () => {
-            if (!editandoRegistro) return;
-
-            setLoading(true);
-            setError('');
-            setSuccess('');
-
-            const fechaRegistro = editandoRegistro.fecha ? obtenerFechaLocal(editandoRegistro.fecha) : null;
-            const hoy = obtenerHoy();
-            const esCorreccionPasada = fechaRegistro && fechaRegistro !== hoy;
-
-            const errorValidacion = validarLectura(editLectura, editandoRegistro.local, editandoRegistro, esCorreccionPasada);
-            if (errorValidacion) {
-              setError(errorValidacion);
-              setLoading(false);
-              return;
-            }
-
-            try {
-              const lecturaNum = parseFloat(editLectura);
-              const registroActualizado = {
-                ...editandoRegistro,
-                lectura: lecturaNum,
-                fechaCorreccion: new Date().toISOString(),
-                corregidoPor: user.nombre,
-                lecturaAnterior: editandoRegistro.lectura
-              };
-
-              let actualizado = false;
-
-              if (firebaseInitialized && database && isOnline && editandoRegistro.firebaseId) {
-                try {
-                  actualizado = await actualizarRegistroFirebase(editandoRegistro.firebaseId, {
-                    lectura: lecturaNum,
-                    fechaCorreccion: registroActualizado.fechaCorreccion,
-                    corregidoPor: registroActualizado.corregidoPor,
-                    lecturaAnterior: registroActualizado.lecturaAnterior
-                  });
-                } catch (firebaseError) {
-                  console.warn('Error actualizando en Firebase:', firebaseError);
-                  if (editandoRegistro.id) {
-                    const registrosLocales = cargarRegistrosLocales();
-                    const nuevosRegistros = registrosLocales.map(r => 
-                      r.id === editandoRegistro.id ? registroActualizado : r
-                    );
-                    localStorage.setItem('registros-offline-gran-manzana', JSON.stringify(nuevosRegistros));
-                    actualizado = true;
-                  }
-                }
-              } else if (editandoRegistro.id) {
-                const registrosLocales = cargarRegistrosLocales();
-                const nuevosRegistros = registrosLocales.map(r => 
-                  r.id === editandoRegistro.id ? registroActualizado : r
-                );
-                localStorage.setItem('registros-offline-gran-manzana', JSON.stringify(nuevosRegistros));
-                actualizado = true;
-              }
-
-              if (actualizado) {
-                setRegistros(prev => prev.map(r => 
-                  (r.firebaseId === editandoRegistro.firebaseId || r.id === editandoRegistro.id) 
-                    ? registroActualizado 
-                    : r
-                ));
-
-                if (!esCorreccionPasada) {
-                  const localesActualizados = locales.map(l => 
-                    String(l.numero) === String(editandoRegistro.local)
-                      ? { ...l, ultimaLectura: lecturaNum, fechaUltimaLectura: registroActualizado.fechaCorreccion }
-                      : l
-                  );
-                  
-                  localStorage.setItem('locales-gran-manzana', JSON.stringify(localesActualizados));
-                  setLocales(localesActualizados);
-                }
-
-                setSuccess(`✓ Lectura del local ${editandoRegistro.local} corregida correctamente${esCorreccionPasada ? ' (corrección de fecha anterior)' : ''}`);
-                cancelarEdicion();
-              } else {
-                setError('Error al actualizar el registro');
-              }
-
-            } catch (err) {
-              setError('Error al actualizar el registro: ' + err.message);
-            } finally {
-              setLoading(false);
-            }
-          };
-
-          const eliminarRegistro = async (registro) => {
-            if (!confirm('¿Está seguro de que desea eliminar este registro?')) {
-              return;
-            }
-
-            setLoading(true);
-            setError('');
-            setSuccess('');
-
-            try {
-              let eliminado = false;
-
-              if (firebaseInitialized && database && isOnline && registro.firebaseId) {
-                try {
-                  eliminado = await eliminarRegistroFirebase(registro.firebaseId);
-                } catch (firebaseError) {
-                  console.warn('Error eliminando en Firebase:', firebaseError);
-                  if (registro.id) {
-                    eliminado = eliminarRegistroLocal(registro.id);
-                  }
-                }
-              } else if (registro.id) {
-                eliminado = eliminarRegistroLocal(registro.id);
-              }
-
-              if (eliminado) {
-                setRegistros(prev => prev.filter(r => 
-                  r.firebaseId !== registro.firebaseId && r.id !== registro.id
-                ));
-                setSuccess(`✓ Registro del local ${registro.local} eliminado correctamente`);
-              } else {
-                setError('Error al eliminar el registro');
-              }
-
-            } catch (err) {
-              setError('Error al eliminar el registro: ' + err.message);
-            } finally {
-              setLoading(false);
-            }
-          };
-
-          const exportarExcel = () => {
-            const hoy = obtenerHoy();
-            const registrosHoy = registros.filter(r => {
-              if (!r.fecha) return false;
-              const fechaRegistro = obtenerFechaLocal(r.fecha);
-              return fechaRegistro === hoy;
+        };
+        const guardarRegistroFirebase = async (r) => {
+            if (!firebaseInitialized || !database) throw new Error('Firebase no disponible');
+            await database.ref('registros').push().set(r);
+        };
+        const guardarEnFirebaseEnSegundoPlano = (r) => {
+            if (!firebaseInitialized || !database || !navigator.onLine) return;
+            queueMicrotask(async () => {
+                try { await guardarRegistroFirebase(r); eliminarRegistroLocal(r.id); }
+                catch (e) { console.warn('Firebase offline'); }
             });
-            
-            let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
-            
-            const registrosOrdenados = [...registrosHoy].sort(ordenarRegistros);
-            
-            registrosOrdenados.forEach(r => {
-              const fecha = r.fecha ? new Date(r.fecha) : new Date();
-              const fechaStr = fecha.toLocaleDateString('es-EC');
-              const horaStr = fecha.toLocaleTimeString('es-EC');
-              const tieneFoto = r.foto ? 'Sí' : 'No';
-              
-              let lecturaFormateada;
-              if (r.lectura !== undefined && r.lectura !== null) {
-                const numero = parseFloat(r.lectura);
-                lecturaFormateada = numero.toLocaleString('es-ES', {
-                  minimumFractionDigits: 1,
-                  maximumFractionDigits: 3,
-                  useGrouping: false
-                });
-              } else {
-                lecturaFormateada = '0';
-              }
-              
-              const limpiar = (texto) => {
-                texto = String(texto).replace(/;/g, ',');
-                return texto;
-              };
-              
-              csv += `${fechaStr};${horaStr};${limpiar(r.local)};${limpiar(r.inquilino)};${lecturaFormateada};${limpiar(r.guardia)};${tieneFoto}\n`;
-            });
+        };
+        const actualizarRegistroFirebase = async (id, datos) => {
+            if (!firebaseInitialized || !database) throw new Error('Firebase no disponible');
+            await database.ref(`registros/${id}`).update(datos);
+        };
+        const eliminarRegistroFirebase = async (id) => {
+            if (!firebaseInitialized || !database) throw new Error('Firebase no disponible');
+            await database.ref(`registros/${id}`).remove();
+        };
 
-            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `lecturas-gran-manzana-${hoy}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-          };
-
-          const exportarExcelPorFechas = () => {
-            if (!fechaInicio) {
-              setError('Por favor seleccione una fecha de inicio');
-              return;
-            }
-
-            const fechaFinSeleccionada = fechaFin || fechaInicio;
-            
-            const registrosFiltrados = registros.filter(r => {
-              if (!r.fecha) return false;
-              const fechaRegistro = obtenerFechaLocal(r.fecha);
-              return fechaRegistro >= fechaInicio && fechaRegistro <= fechaFinSeleccionada;
-            });
-
-            if (registrosFiltrados.length === 0) {
-              setError('No hay registros para el rango de fechas seleccionado');
-              return;
-            }
-
-            let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
-            
-            const registrosOrdenados = [...registrosFiltrados].sort(ordenarRegistros);
-            
-            registrosOrdenados.forEach(r => {
-              const fecha = r.fecha ? new Date(r.fecha) : new Date();
-              const fechaStr = fecha.toLocaleDateString('es-EC');
-              const horaStr = fecha.toLocaleTimeString('es-EC');
-              const tieneFoto = r.foto ? 'Sí' : 'No';
-              
-              let lecturaFormateada;
-              if (r.lectura !== undefined && r.lectura !== null) {
-                const numero = parseFloat(r.lectura);
-                lecturaFormateada = numero.toLocaleString('es-ES', {
-                  minimumFractionDigits: 1,
-                  maximumFractionDigits: 3,
-                  useGrouping: false
-                });
-              } else {
-                lecturaFormateada = '0';
-              }
-              
-              const limpiar = (texto) => {
-                texto = String(texto).replace(/;/g, ',');
-                return texto;
-              };
-              
-              csv += `${fechaStr};${horaStr};${limpiar(r.local)};${limpiar(r.inquilino)};${lecturaFormateada};${limpiar(r.guardia)};${tieneFoto}\n`;
-            });
-
-            const nombreArchivo = fechaInicio === fechaFinSeleccionada 
-              ? `lecturas-gran-manzana-${fechaInicio}.csv`
-              : `lecturas-gran-manzana-${fechaInicio}-a-${fechaFinSeleccionada}.csv`;
-
-            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = nombreArchivo;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-
-            setSuccess(`Excel exportado correctamente: ${registrosFiltrados.length} registros`);
-          };
-
-          const calcularProgreso = () => {
-            const hoy = obtenerHoy();
-            const registrosHoy = registros.filter(r => {
-              if (!r.fecha) return false;
-              const fechaRegistro = obtenerFechaLocal(r.fecha);
-              return fechaRegistro === hoy;
-            });
-            return {
-              completados: registrosHoy.length,
-              total: locales.length,
-              porcentaje: locales.length > 0 ? Math.round((registrosHoy.length / locales.length) * 100) : 0
-            };
-          };
-
-          const buscarRegistrosCorreccion = () => {
-            if (!fechaCorreccion || !localCorreccion) {
-              setError('Debe seleccionar una fecha y un local para buscar');
-              return [];
-            }
-
-            return registros.filter(r => {
-              if (!r.fecha) return false;
-              const fechaRegistro = obtenerFechaLocal(r.fecha);
-              return fechaRegistro === fechaCorreccion && 
-                     String(r.local) === String(localCorreccion) &&
-                     r.username === user.username;
-            });
-          };
-
-          // ========== NUEVAS FUNCIONES PARA DASHBOARD ADMIN ==========
-
-          const calcularConsumoMensual = () => {
-            const consumoPorMes = {};
-            
-            registros.forEach(r => {
-              if (!r.fecha || !r.lectura) return;
-              
-              const fecha = new Date(r.fecha);
-              const mes = fecha.getMonth();
-              const anio = fecha.getFullYear();
-              const key = `${anio}-${mes}`;
-              
-              const local = locales.find(l => String(l.numero) === String(r.local));
-              if (local && local.ultimaLectura) {
-                const consumo = r.lectura - local.ultimaLectura;
-                if (consumo > 0 && consumo < 10000) {
-                  if (!consumoPorMes[key]) {
-                    consumoPorMes[key] = { mes, anio, total: 0, registros: 0 };
-                  }
-                  consumoPorMes[key].total += consumo;
-                  consumoPorMes[key].registros++;
-                }
-              }
-            });
-            
-            return Object.values(consumoPorMes).sort((a, b) => {
-              if (a.anio !== b.anio) return a.anio - b.anio;
-              return a.mes - b.mes;
-            });
-          };
-
-          const calcularTop10Consumo = () => {
-            const consumoPorLocal = {};
-            
-            registros.forEach(r => {
-              if (!r.fecha || !r.lectura) return;
-              
-              const local = locales.find(l => String(l.numero) === String(r.local));
-              if (local && local.ultimaLectura) {
-                const consumo = r.lectura - local.ultimaLectura;
-                if (consumo > 0 && consumo < 10000) {
-                  if (!consumoPorLocal[r.local]) {
-                    consumoPorLocal[r.local] = {
-                      local: r.local,
-                      inquilino: r.inquilino,
-                      consumoTotal: 0,
-                      registros: 0
-                    };
-                  }
-                  consumoPorLocal[r.local].consumoTotal += consumo;
-                  consumoPorLocal[r.local].registros++;
-                }
-              }
-            });
-            
-            return Object.values(consumoPorLocal)
-              .sort((a, b) => b.consumoTotal - a.consumoTotal)
-              .slice(0, 10);
-          };
-
-          const detectarAnomalias = () => {
-            const anomalias = [];
-            const hoy = obtenerHoy();
-            
-            registros.forEach(r => {
-              if (!r.fecha || !r.lectura) return;
-              
-              const fechaRegistro = obtenerFechaLocal(r.fecha);
-              const diasDiferencia = (new Date(hoy) - new Date(fechaRegistro)) / (1000 * 60 * 60 * 24);
-              if (diasDiferencia > 7) return;
-              
-              const local = locales.find(l => String(l.numero) === String(r.local));
-              if (!local || !local.ultimaLectura) return;
-              
-              const consumo = r.lectura - local.ultimaLectura;
-              
-              if (consumo < 0) {
-                anomalias.push({
-                  tipo: 'error',
-                  local: r.local,
-                  inquilino: r.inquilino,
-                  mensaje: `Lectura menor a la anterior (${local.ultimaLectura} → ${r.lectura})`,
-                  fecha: fechaRegistro,
-                  severidad: 'alta'
-                });
-              } else if (consumo > 500) {
-                anomalias.push({
-                  tipo: 'warning',
-                  local: r.local,
-                  inquilino: r.inquilino,
-                  mensaje: `Consumo muy alto: ${consumo.toFixed(2)} m³`,
-                  fecha: fechaRegistro,
-                  severidad: 'alta'
-                });
-              } else if (consumo > 200) {
-                anomalias.push({
-                  tipo: 'warning',
-                  local: r.local,
-                  inquilino: r.inquilino,
-                  mensaje: `Consumo elevado: ${consumo.toFixed(2)} m³`,
-                  fecha: fechaRegistro,
-                  severidad: 'media'
-                });
-              } else if (consumo === 0) {
-                anomalias.push({
-                  tipo: 'info',
-                  local: r.local,
-                  inquilino: r.inquilino,
-                  mensaje: 'Sin consumo detectado',
-                  fecha: fechaRegistro,
-                  severidad: 'baja'
-                });
-              }
-            });
-            
-            return anomalias.sort((a, b) => {
-              const severidadOrden = { alta: 0, media: 1, baja: 2 };
-              return severidadOrden[a.severidad] - severidadOrden[b.severidad];
-            });
-          };
-
-          const obtenerHistorialCorrecciones = () => {
-            return registros
-              .filter(r => r.fechaCorreccion)
-              .sort((a, b) => new Date(b.fechaCorreccion) - new Date(a.fechaCorreccion))
-              .slice(0, 50);
-          };
-
-          const generarCalendarioMes = () => {
-            const primerDia = new Date(anioSeleccionado, mesSeleccionado, 1);
-            const ultimoDia = new Date(anioSeleccionado, mesSeleccionado + 1, 0);
-            const dias = [];
-            
-            const diaSemanaInicio = primerDia.getDay();
-            for (let i = 0; i < diaSemanaInicio; i++) {
-              dias.push(null);
-            }
-            
-            for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
-              const fecha = `${anioSeleccionado}-${String(mesSeleccionado + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-              const registrosDia = registros.filter(r => {
-                if (!r.fecha) return false;
-                return obtenerFechaLocal(r.fecha) === fecha;
-              });
-              
-              const porcentaje = (registrosDia.length / locales.length) * 100;
-              let estado = 'empty';
-              if (porcentaje >= 90) estado = 'complete';
-              else if (porcentaje >= 50) estado = 'partial';
-              
-              dias.push({
-                dia,
-                fecha,
-                registros: registrosDia.length,
-                total: locales.length,
-                porcentaje: Math.round(porcentaje),
-                estado
-              });
-            }
-            
-            return dias;
-          };
-
-          useEffect(() => {
-            if (activeTab === 'dashboard' && chartRef.current) {
-              if (chartInstance.current) {
-                chartInstance.current.destroy();
-              }
-
-              const consumoMensual = calcularConsumoMensual();
-              const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-              
-              const ctx = chartRef.current.getContext('2d');
-              chartInstance.current = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                  labels: consumoMensual.map(c => `${meses[c.mes]} ${c.anio}`),
-                  datasets: [{
-                    label: 'Consumo Total (m³)',
-                    data: consumoMensual.map(c => c.total.toFixed(2)),
-                    backgroundColor: 'rgba(145, 150, 119, 0.6)',
-                    borderColor: 'rgba(145, 150, 119, 1)',
-                    borderWidth: 2
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      display: true,
-                      position: 'top',
-                    },
-                    title: {
-                      display: true,
-                      text: 'Consumo Mensual de Agua'
-                    }
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      title: {
-                        display: true,
-                        text: 'Metros Cúbicos (m³)'
-                      }
-                    }
-                  }
-                }
-              });
-            }
-
-            return () => {
-              if (chartInstance.current) {
-                chartInstance.current.destroy();
-              }
-            };
-          }, [activeTab, registros, locales]);
-
-          const filteredLocales = locales.filter(local => {
-            const search = searchTerm.toLowerCase();
+        // ---------- COMPONENTES MEMOIZADOS (guardia) ----------
+        const SelectLocal = memo(({ locales, registros, selectedLocal, onChange, searchTerm, onSearchChange }) => {
+            const hoy = useMemo(obtenerHoy, []);
+            const opciones = useMemo(() => {
+                if (!searchTerm) return locales.slice(0, 50);
+                const term = searchTerm.toLowerCase();
+                return locales.filter(l => 
+                    String(l.numero).toLowerCase().includes(term) || 
+                    l.inquilino.toLowerCase().includes(term)
+                ).slice(0, 50);
+            }, [locales, searchTerm]);
             return (
-              String(local.numero).toLowerCase().includes(search) ||
-              local.inquilino.toLowerCase().includes(search)
-            );
-          });
-
-          // ========== RENDERIZADO DE LOGIN ==========
-          if (!user) {
-            return (
-              <div className="min-h-screen bg-azul-lgm flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-200">
-                  <div className="text-center mb-8">
-                    <div className="mb-4">
-                      <h1 className="text-4xl font-bold text-azul-lgm mb-2">La Gran Manzana</h1>
-                      <div className="text-sm text-gray-600 space-y-1">
-                        <p className="font-semibold">Centro Comercial</p>
-                        <p>Sistema de Registro de Medidores</p>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-center gap-2">
-                      {isOnline ? (
-                        <span className="flex items-center gap-1 text-green-600 text-sm">
-                          <Wifi className="w-4 h-4" />
-                          {firebaseInitialized ? 'Conectado a Firebase' : 'Conectado (Modo Local)'}
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-orange-600 text-sm">
-                          <WifiOff className="w-4 h-4" />
-                          Sin conexión
-                        </span>
-                      )}
-                    </div>
-                    {firebaseError && (
-                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-                        {firebaseError}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Usuario</label>
-                      <input
-                        type="text"
-                        value={loginUsername}
-                        onChange={(e) => setLoginUsername(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                        placeholder="Ingrese su usuario"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
-                      <input
-                        type="password"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                        placeholder="Ingrese su contraseña"
-                      />
-                    </div>
-
-                    {loginUsername === 'guardia' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Nombre y Apellido *</label>
-                        <input
-                          type="text"
-                          value={nombreGuardia}
-                          onChange={(e) => setNombreGuardia(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                          placeholder="Ej: Juan Pérez"
-                        />
-                      </div>
-                    )}
-
-                    {error && (
-                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-2">
-                        <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">{error}</span>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={handleLogin}
-                      className="w-full bg-verde-lgm hover:bg-[#7a8560] text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg"
-                    >
-                      Iniciar Sesión
-                    </button>
-                  </div>
-
-                  <div className="mt-6 p-4 bg-gray-50 rounded-xl text-sm text-gray-600">
-                    <p className="font-semibold mb-2">Credenciales de acceso:</p>
-                    <p><strong>Guardias:</strong> usuario: guardia | contraseña: 1234</p>
-                    <p className="text-xs text-gray-500 mt-1">* Después de ingresar usuario y contraseña, escriba su nombre completo</p>
-                  </div>
-
-                  {!firebaseInitialized && (
-                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-xs text-yellow-800">
-                      <p className="font-semibold mb-1">⚠️ Modo Local Activado</p>
-                      <p>Firebase no está disponible. Los datos se guardarán localmente.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          }
-
-          // ========== RENDERIZADO DE PANEL ADMIN CON TABS ==========
-          if (view === 'admin') {
-            const progreso = calcularProgreso();
-            const hoy = obtenerHoy();
-            const registrosHoy = registros.filter(r => {
-              if (!r.fecha) return false;
-              const fechaRegistro = obtenerFechaLocal(r.fecha);
-              return fechaRegistro === hoy;
-            });
-
-            const top10 = calcularTop10Consumo();
-            const anomalias = detectarAnomalias();
-            const historialCorrecciones = obtenerHistorialCorrecciones();
-            const calendarioDias = generarCalendarioMes();
-            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
-            return (
-              <div className="min-h-screen bg-gray-50 p-4">
-                <div className="max-w-7xl mx-auto">
-                  {/* HEADER */}
-                  <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-gray-200">
-                    <div className="flex justify-between items-center mb-6">
-                      <div>
-                        <h1 className="text-3xl font-bold text-azul-lgm mb-2">Panel Administrativo</h1>
-                        <p className="text-gray-600">Bienvenido, <span className="font-semibold text-verde-lgm">{user.nombre}</span></p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {isOnline ? (
-                          <span className="flex items-center gap-1 text-green-600 text-sm bg-green-50 px-3 py-1 rounded-full">
-                            <Wifi className="w-4 h-4" />
-                            {firebaseInitialized ? 'Firebase' : 'Local'}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-orange-600 text-sm bg-orange-50 px-3 py-1 rounded-full">
-                            <WifiOff className="w-4 h-4" />
-                            Offline
-                          </span>
-                        )}
-                        <button
-                          onClick={() => { setUser(null); setView('login'); }}
-                          className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all transform hover:scale-105"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          Salir
-                        </button>
-                      </div>
-                    </div>
-
-                    {syncStatus && (
-                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
-                        {syncStatus}
-                      </div>
-                    )}
-
-                    {firebaseError && (
-                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
-                        {firebaseError}
-                      </div>
-                    )}
-
-                    {/* TARJETAS DE RESUMEN */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="bg-azul-lgm text-white p-4 rounded-xl shadow-lg">
-                        <div className="flex items-center gap-3">
-                          <Calendar className="w-8 h-8 text-white" />
-                          <div>
-                            <p className="text-sm opacity-90">Fecha</p>
-                            <p className="text-xl font-bold">{new Date().toLocaleDateString()}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-verde-lgm text-white p-4 rounded-xl shadow-lg">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle className="w-8 h-8 text-white" />
-                          <div>
-                            <p className="text-sm opacity-90">Registrados Hoy</p>
-                            <p className="text-xl font-bold">{progreso.completados} / {progreso.total}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-azul-lgm text-white p-4 rounded-xl shadow-lg">
-                        <div className="flex items-center gap-3">
-                          <Clock className="w-8 h-8 text-white" />
-                          <div>
-                            <p className="text-sm opacity-90">Progreso</p>
-                            <p className="text-xl font-bold">{progreso.porcentaje}%</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mb-6">
-                      <div className="w-full bg-gray-200 rounded-full h-4">
-                        <div
-                          className="bg-verde-lgm h-4 rounded-full transition-all duration-500 shadow-lg"
-                          style={{ width: `${progreso.porcentaje}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    {/* TABS DE NAVEGACIÓN */}
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setActiveTab('registros')}
-                        className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'registros' ? 'tab-active' : 'tab-inactive hover:bg-gray-200'}`}
-                      >
-                        📋 Registros
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('dashboard')}
-                        className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'dashboard' ? 'tab-active' : 'tab-inactive hover:bg-gray-200'}`}
-                      >
-                        📈 Dashboard
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('alertas')}
-                        className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'alertas' ? 'tab-active' : 'tab-inactive hover:bg-gray-200'}`}
-                      >
-                        ⚠️ Alertas
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('historial')}
-                        className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'historial' ? 'tab-active' : 'tab-inactive hover:bg-gray-200'}`}
-                      >
-                        🕐 Correcciones
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('calendario')}
-                        className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'calendario' ? 'tab-active' : 'tab-inactive hover:bg-gray-200'}`}
-                      >
-                        📅 Calendario
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* TAB: REGISTROS */}
-                  {activeTab === 'registros' && (
-                    <div>
-                      {!isOnline && (
-                        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold text-yellow-800">Modo Offline</p>
-                              <p className="text-sm text-yellow-700">Los registros se guardan localmente</p>
-                            </div>
-                            <button
-                              onClick={sincronizarRegistrosOffline}
-                              disabled={syncing || !isOnline}
-                              className="flex items-center gap-2 px-4 py-2 bg-azul-lgm hover:bg-[#1a1f45] disabled:bg-gray-400 text-white rounded-xl transition-all"
-                            >
-                              <CloudUpload className="w-4 h-4" />
-                              {syncing ? 'Sincronizando...' : 'Sincronizar'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="bg-blue-50 p-6 rounded-xl mb-6 border border-blue-200">
-                        <h3 className="text-xl font-bold text-azul-lgm mb-4 flex items-center gap-2">
-                          <Calendar className="w-6 h-6" />
-                          Exportar Registros por Fechas
-                        </h3>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Fecha de Inicio *
-                            </label>
-                            <input
-                              type="date"
-                              value={fechaInicio}
-                              onChange={(e) => setFechaInicio(e.target.value)}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Fecha de Fin (opcional)
-                            </label>
-                            <input
-                              type="date"
-                              value={fechaFin}
-                              onChange={(e) => setFechaFin(e.target.value)}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Si no selecciona fecha fin, se exportará solo la fecha de inicio
-                            </p>
-                          </div>
-                          
-                          <div className="flex items-end">
-                            <button
-                              onClick={exportarExcelPorFechas}
-                              disabled={!fechaInicio}
-                              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-azul-lgm hover:bg-[#1a1f45] disabled:bg-gray-400 text-white rounded-xl transition-all transform hover:scale-105 font-semibold shadow-lg"
-                            >
-                              <Download className="w-5 h-5" />
-                              Exportar por Fechas
-                            </button>
-                          </div>
-                        </div>
-                        
-                        <div className="text-sm text-gray-600">
-                          <p><strong>Nota:</strong> El archivo se descargará en formato CSV compatible con Excel.</p>
-                          <p>Incluye todos los registros del rango de fechas seleccionado.</p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-4 mb-6">
-                        <button
-                          onClick={exportarExcel}
-                          disabled={registrosHoy.length === 0}
-                          className="flex items-center gap-2 px-6 py-3 bg-verde-lgm hover:bg-[#7a8560] disabled:bg-gray-400 text-white rounded-xl transition-all transform hover:scale-105 font-semibold shadow-lg"
-                        >
-                          <Download className="w-5 h-5" />
-                          Exportar Hoy ({registrosHoy.length} registros)
-                        </button>
-                      </div>
-
-                      <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                          Registros de Hoy 
-                          <span className="text-sm font-normal text-gray-600 ml-2">
-                            {firebaseInitialized ? '(Tiempo Real)' : '(Modo Local)'}
-                          </span>
-                        </h2>
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Local</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Inquilino</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Lectura</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Hora</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Guardia</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Foto</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                              {registrosHoy.length === 0 ? (
-                                <tr>
-                                  <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
-                                    No hay registros para hoy
-                                  </td>
-                                </tr>
-                              ) : (
-                                registrosHoy
-                                  .sort(ordenarRegistros)
-                                  .map(r => (
-                                    <tr key={r.firebaseId || r.id} className="hover:bg-gray-50 transition-colors">
-                                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
-                                      <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
-                                      <td className="px-4 py-3 text-sm text-gray-700 font-semibold">
-                                        {r.lectura} m³
-                                        {r.lecturaAnterior && (
-                                          <div className="text-xs text-red-600">
-                                            Corregido: {r.lecturaAnterior} m³ → {r.lectura} m³
-                                          </div>
-                                        )}
-                                      </td>
-                                      <td className="px-4 py-3 text-sm text-gray-700">
-                                        {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}
-                                        {r.fechaCorreccion && (
-                                          <div className="text-xs text-blue-600">
-                                            Corregido: {new Date(r.fechaCorreccion).toLocaleTimeString()}
-                                          </div>
-                                        )}
-                                      </td>
-                                      <td className="px-4 py-3 text-sm text-gray-700">
-                                        {r.guardia}
-                                        {r.corregidoPor && r.corregidoPor !== r.guardia && (
-                                          <div className="text-xs text-blue-600">
-                                            Corregido por: {r.corregidoPor}
-                                          </div>
-                                        )}
-                                      </td>
-                                      <td className="px-4 py-3">
-                                        {r.foto ? (
-                                          <img src={r.foto} alt="Medidor" className="w-16 h-16 object-cover rounded-lg cursor-pointer shadow-sm" 
-                                               onClick={() => window.open(r.foto, '_blank')} />
-                                        ) : (
-                                          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Sin foto</span>
-                                        )}
-                                      </td>
-                                      <td className="px-4 py-3">
-                                        {r.firebaseId ? (
-                                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                                            <Wifi className="w-3 h-3" />
-                                            En Firebase
-                                          </span>
-                                        ) : (
-                                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
-                                            <WifiOff className="w-3 h-3" />
-                                            Local
-                                          </span>
-                                        )}
-                                        {r.fechaCorreccion && (
-                                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mt-1">
-                                            Corregido
-                                          </span>
-                                        )}
-                                      </td>
-                                      <td className="px-4 py-3">
-                                        <div className="flex gap-2">
-                                          <button
-                                            onClick={() => iniciarEdicion(r)}
-                                            className="flex items-center gap-1 px-3 py-1 bg-azul-lgm hover:bg-[#1a1f45] text-white rounded-lg text-xs transition-colors"
-                                          >
-                                            <Edit className="w-3 h-3" />
-                                            Editar
-                                          </button>
-                                          <button
-                                            onClick={() => eliminarRegistro(r)}
-                                            className="flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs transition-colors"
-                                          >
-                                            <Trash className="w-3 h-3" />
-                                            Eliminar
-                                          </button>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  ))
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TAB: DASHBOARD */}
-                  {activeTab === 'dashboard' && (
-                    <div className="space-y-6">
-                      {/* GRÁFICO DE CONSUMO MENSUAL */}
-                      <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                          <BarChart className="w-6 h-6 text-verde-lgm" />
-                          Consumo Mensual de Agua
-                        </h2>
-                        <div style={{ height: '400px' }}>
-                          <canvas ref={chartRef}></canvas>
-                        </div>
-                      </div>
-
-                      {/* TOP 10 LOCALES */}
-                      <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                          <Award className="w-6 h-6 text-yellow-500" />
-                          Top 10 Locales con Mayor Consumo
-                        </h2>
-                        {top10.length === 0 ? (
-                          <p className="text-center text-gray-500 py-8">No hay datos suficientes para mostrar el top 10</p>
-                        ) : (
-                          <div className="space-y-3">
-                            {top10.map((item, index) => (
-                              <div key={item.local} className="flex items-center justify-between p-4 bg-gradient-to-r from-verde-lgm to-azul-lgm text-white rounded-xl shadow-md">
-                                <div className="flex items-center gap-4">
-                                  <div className="bg-white text-azul-lgm w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg">
-                                    {index + 1}
-                                  </div>
-                                  <div>
-                                    <p className="font-semibold text-lg">Local {item.local} - {item.inquilino}</p>
-                                    <p className="text-sm opacity-90">{item.registros} registros</p>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-2xl font-bold">{item.consumoTotal.toFixed(2)} m³</p>
-                                  <p className="text-sm opacity-90">consumo total</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TAB: ALERTAS */}
-                  {activeTab === 'alertas' && (
-                    <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
-                      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                        <AlertTriangle className="w-6 h-6 text-red-500" />
-                        Alertas de Lecturas Anómalas (Últimos 7 días)
-                      </h2>
-                      {anomalias.length === 0 ? (
-                        <div className="text-center py-12">
-                          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                          <p className="text-xl font-semibold text-gray-700">¡Todo en orden!</p>
-                          <p className="text-gray-500">No se detectaron anomalías en las lecturas recientes</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {anomalias.map((alerta, index) => {
-                            let bgColor = 'bg-gray-50';
-                            let borderColor = 'border-gray-200';
-                            let iconColor = 'text-gray-600';
-                            
-                            if (alerta.severidad === 'alta') {
-                              bgColor = 'bg-red-50';
-                              borderColor = 'border-red-300';
-                              iconColor = 'text-red-600';
-                            } else if (alerta.severidad === 'media') {
-                              bgColor = 'bg-yellow-50';
-                              borderColor = 'border-yellow-300';
-                              iconColor = 'text-yellow-600';
-                            } else {
-                              bgColor = 'bg-blue-50';
-                              borderColor = 'border-blue-300';
-                              iconColor = 'text-blue-600';
-                            }
-                            
-                            return (
-                              <div key={index} className={`${bgColor} border ${borderColor} p-4 rounded-xl`}>
-                                <div className="flex items-start gap-3">
-                                  <AlertTriangle className={`w-6 h-6 ${iconColor} flex-shrink-0 mt-1`} />
-                                  <div className="flex-1">
-                                    <div className="flex justify-between items-start mb-2">
-                                      <div>
-                                        <p className="font-semibold text-gray-800">
-                                          Local {alerta.local} - {alerta.inquilino}
-                                        </p>
-                                        <p className="text-sm text-gray-600">{alerta.mensaje}</p>
-                                      </div>
-                                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                        alerta.severidad === 'alta' ? 'bg-red-200 text-red-800' :
-                                        alerta.severidad === 'media' ? 'bg-yellow-200 text-yellow-800' :
-                                        'bg-blue-200 text-blue-800'
-                                      }`}>
-                                        {alerta.severidad.toUpperCase()}
-                                      </span>
-                                    </div>
-                                    <p className="text-xs text-gray-500">Fecha: {alerta.fecha}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* TAB: HISTORIAL DE CORRECCIONES */}
-                  {activeTab === 'historial' && (
-                    <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
-                      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                        <History className="w-6 h-6 text-blue-600" />
-                        Historial de Correcciones (Últimas 50)
-                      </h2>
-                      {historialCorrecciones.length === 0 ? (
-                        <p className="text-center text-gray-500 py-12">No hay correcciones registradas</p>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Fecha Corrección</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Local</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Inquilino</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Lectura Original</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Lectura Corregida</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Corregido Por</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Fecha Original</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                              {historialCorrecciones.map((r, index) => (
-                                <tr key={r.firebaseId || r.id || index} className="hover:bg-gray-50 transition-colors">
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {new Date(r.fechaCorreccion).toLocaleString('es-EC')}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
-                                  <td className="px-4 py-3 text-sm text-red-600 font-semibold">
-                                    {r.lecturaAnterior} m³
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-green-600 font-semibold">
-                                    {r.lectura} m³
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">{r.corregidoPor}</td>
-                                  <td className="px-4 py-3 text-sm text-gray-500">
-                                    {r.fecha ? new Date(r.fecha).toLocaleDateString('es-EC') : 'N/A'}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* TAB: CALENDARIO */}
-                  {activeTab === 'calendario' && (
-                    <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
-                      <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                          <Calendar className="w-6 h-6 text-verde-lgm" />
-                          Calendario de Lecturas
-                        </h2>
-                        <div className="flex items-center gap-3">
-                          <select
-                            value={mesSeleccionado}
-                            onChange={(e) => setMesSeleccionado(parseInt(e.target.value))}
-                            className="px-4 py-2 border border-gray-300 rounded-lg"
-                          >
-                            {meses.map((mes, index) => (
-                              <option key={index} value={index}>{mes}</option>
-                            ))}
-                          </select>
-                          <select
-                            value={anioSeleccionado}
-                            onChange={(e) => setAnioSeleccionado(parseInt(e.target.value))}
-                            className="px-4 py-2 border border-gray-300 rounded-lg"
-                          >
-                            {[2023, 2024, 2025, 2026].map(anio => (
-                              <option key={anio} value={anio}>{anio}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Leyenda */}
-                      <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-green-200 border border-green-400 rounded"></div>
-                          <span className="text-sm text-gray-700">≥ 90% completado</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-yellow-200 border border-yellow-400 rounded"></div>
-                          <span className="text-sm text-gray-700">50-89% completado</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-red-200 border border-red-400 rounded"></div>
-                          <span className="text-sm text-gray-700">{'<'} 50% completado</span>
-                        </div>
-                      </div>
-
-                      {/* Calendario */}
-                      <div className="grid grid-cols-7 gap-2">
-                        {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(dia => (
-                          <div key={dia} className="text-center font-semibold text-gray-700 py-2">
-                            {dia}
-                          </div>
-                        ))}
-                        {calendarioDias.map((dia, index) => {
-                          if (!dia) {
-                            return <div key={`empty-${index}`} className="calendar-day"></div>;
-                          }
-                          
-                          let estadoClass = 'calendar-day-empty';
-                          if (dia.estado === 'complete') estadoClass = 'calendar-day-complete';
-                          else if (dia.estado === 'partial') estadoClass = 'calendar-day-partial';
-                          
-                          return (
-                            <div key={dia.dia} className={`calendar-day ${estadoClass} p-2 rounded-lg cursor-pointer hover:shadow-md transition-shadow`}>
-                              <div className="font-bold text-gray-800">{dia.dia}</div>
-                              <div className="text-xs text-gray-600 mt-1">
-                                {dia.registros}/{dia.total}
-                              </div>
-                              <div className="text-xs font-semibold text-gray-700 mt-1">
-                                {dia.porcentaje}%
-                              </div>
-                            </div>
-                          );
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Buscar / Seleccionar Local</label>
+                    <input list="locales-list" value={selectedLocal} onChange={e => onChange(e.target.value)} onInput={e => onSearchChange(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm" placeholder="Escriba número o inquilino" />
+                    <datalist id="locales-list">
+                        {opciones.map(l => {
+                            const ya = registros.some(r => String(r.local) === String(l.numero) && obtenerFechaLocal(r.fecha) === hoy);
+                            return <option key={l.numero} value={l.numero}>{l.numero} - {l.inquilino} {ya ? '✓' : ''} {l.ultimaLectura ? `(${l.ultimaLectura} m³)` : ''}</option>;
                         })}
-                      </div>
-                    </div>
-                  )}
+                    </datalist>
+                    {searchTerm && opciones.length===0 && <p className="text-sm text-gray-500 mt-2">No se encontraron locales</p>}
                 </div>
-
-                {/* Modal de Edición */}
-                {editandoRegistro && (
-                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-gray-200">
-                      <h3 className="text-xl font-bold text-gray-800 mb-4">Editar Lectura</h3>
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-sm text-gray-600 mb-2">Local: <span className="font-semibold">{editandoRegistro.local}</span></p>
-                          <p className="text-sm text-gray-600 mb-4">Inquilino: <span className="font-semibold">{editandoRegistro.inquilino}</span></p>
-                          {editandoRegistro.fecha && obtenerFechaLocal(editandoRegistro.fecha) !== obtenerHoy() && (
-                            <div className="bg-yellow-50 p-3 rounded-lg mb-3">
-                              <p className="text-sm text-yellow-800">
-                                <strong>⚠️ Corrigiendo lectura anterior</strong><br/>
-                                Fecha original: {obtenerFechaLocal(editandoRegistro.fecha)}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Nueva Lectura (m³) *
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={editLectura}
-                            onChange={(e) => setEditLectura(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                            placeholder="Ej: 1234.56"
-                          />
-                        </div>
-                        <div className="flex gap-4 pt-4">
-                          <button
-                            onClick={guardarEdicion}
-                            disabled={loading}
-                            className="flex-1 bg-verde-lgm hover:bg-[#7a8560] disabled:bg-gray-400 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105"
-                          >
-                            {loading ? 'Guardando...' : 'Guardar Cambios'}
-                          </button>
-                          <button
-                            onClick={cancelarEdicion}
-                            disabled={loading}
-                            className="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
             );
-          }
+        });
 
-          // ========== VISTA DE GUARDIA ==========
-          const progreso = calcularProgreso();
-
-          return (
-            <div className="min-h-screen bg-gray-50 p-4">
-              <div className="max-w-2xl mx-auto">
-                <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-gray-200">
-                  <div className="flex justify-between items-center mb-6">
-                    <div>
-                      <h1 className="text-2xl font-bold text-azul-lgm mb-2">Registro de Medidores</h1>
-                      <p className="text-gray-600">Hola, <span className="font-semibold text-verde-lgm">{user.nombre}</span></p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {isOnline ? (
-                        <span className="flex items-center gap-1 text-green-600 text-sm bg-green-50 px-3 py-1 rounded-full">
-                          <Wifi className="w-4 h-4" />
-                          {firebaseInitialized ? 'Firebase' : 'Local'}
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-orange-600 text-sm bg-orange-50 px-3 py-1 rounded-full">
-                          <WifiOff className="w-4 h-4" />
-                          Offline
-                        </span>
-                      )}
-                      <button
-                        onClick={() => { setUser(null); setView('login'); }}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all transform hover:scale-105"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Salir
-                      </button>
-                    </div>
-                  </div>
-
-                  {syncStatus && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
-                      {syncStatus}
-                    </div>
-                  )}
-
-                  {firebaseError && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
-                      {firebaseError}
-                    </div>
-                  )}
-
-                  <div className="bg-blue-50 p-4 rounded-xl mb-6 border border-gray-200">
-                    <p className="text-sm text-gray-700 mb-2">Progreso de hoy: {progreso.completados} / {progreso.total} locales</p>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                      <div
-                        className="bg-verde-lgm h-3 rounded-full transition-all duration-500 shadow-lg"
-                        style={{ width: `${progreso.porcentaje}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  {/* SECCIÓN DE CORRECCIÓN DE LECTURAS ANTERIORES */}
-                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl mb-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-lg font-semibold text-yellow-800 flex items-center gap-2">
-                        <History className="w-5 h-5" />
-                        ¿Necesita corregir una lectura anterior?
-                      </h3>
-                      <button
-                        onClick={() => setMostrarHistorial(!mostrarHistorial)}
-                        className="text-sm text-yellow-700 underline"
-                      >
-                        {mostrarHistorial ? 'Ocultar' : 'Mostrar'}
-                      </button>
-                    </div>
-                    
-                    {mostrarHistorial && (
-                      <div className="space-y-4 mt-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-yellow-700 mb-2">
-                              Fecha a corregir *
-                            </label>
-                            <input
-                              type="date"
-                              value={fechaCorreccion}
-                              onChange={(e) => setFechaCorreccion(e.target.value)}
-                              max={obtenerHoy()}
-                              className="w-full px-4 py-2 border border-yellow-300 rounded-lg"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-yellow-700 mb-2">
-                              Local a corregir *
-                            </label>
-                            <select
-                              value={localCorreccion}
-                              onChange={(e) => setLocalCorreccion(e.target.value)}
-                              className="w-full px-4 py-2 border border-yellow-300 rounded-lg"
-                            >
-                              <option value="">-- Seleccione un local --</option>
-                              {locales.map(local => (
-                                <option key={local.numero} value={local.numero}>
-                                  {local.numero} - {local.inquilino}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                        
-                        {fechaCorreccion && localCorreccion && (
-                          <div className="mt-4">
-                            <h4 className="font-semibold mb-2 text-yellow-800">Registros encontrados:</h4>
-                            {buscarRegistrosCorreccion().length === 0 ? (
-                              <p className="text-sm text-yellow-700 bg-yellow-100 p-3 rounded-lg">
-                                No se encontraron registros para {localCorreccion} el {fechaCorreccion}
-                              </p>
-                            ) : (
-                              buscarRegistrosCorreccion().map(registro => (
-                                <div key={registro.id || registro.firebaseId} 
-                                     className="border border-yellow-300 rounded-lg p-3 mb-2 bg-white">
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <p className="font-medium">Lectura actual: <span className="font-bold">{registro.lectura} m³</span></p>
-                                      <p className="text-sm text-gray-600">
-                                        Hora: {new Date(registro.fecha).toLocaleTimeString()}
-                                      </p>
-                                      {registro.fechaCorreccion && (
-                                        <p className="text-xs text-blue-600">
-                                          Ya fue corregido el {new Date(registro.fechaCorreccion).toLocaleDateString()}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        iniciarEdicion(registro);
-                                        setMostrarHistorial(false);
-                                      }}
-                                      className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm transition-colors"
-                                    >
-                                      Corregir
-                                    </button>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    <p className="text-sm text-yellow-700 mt-3">
-                      <strong>Nota:</strong> Puede corregir lecturas de días anteriores seleccionando la fecha y el local.
-                    </p>
-                  </div>
-
-                  {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-2 mb-4">
-                      <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm">{error}</span>
-                    </div>
-                  )}
-
-                  {success && (
-                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-start gap-2 mb-4">
-                      <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm">{success}</span>
-                    </div>
-                  )}
-
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Buscar Local o Inquilino
-                      </label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                        <input
-                          type="text"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                          placeholder="Ej: 25, Equindeca, Baños..."
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Seleccionar Local *
-                      </label>
-                      <select
-                        value={selectedLocal}
-                        onChange={(e) => setSelectedLocal(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                      >
-                        <option value="">-- Seleccione un local --</option>
-                        {filteredLocales.map(local => {
-                          const hoy = obtenerHoy();
-                          const yaRegistrado = registros.find(r => {
-                            if (!r.fecha) return false;
-                            const fechaRegistro = obtenerFechaLocal(r.fecha);
-                            return String(r.local) === String(local.numero) && 
-                                   fechaRegistro === hoy;
-                          });
-                          const etiqueta = local.grupo ? `${local.numero} (Medidor Compartido)` : local.numero;
-                          return (
-                            <option key={local.numero} value={local.numero} disabled={yaRegistrado}>
-                              {etiqueta} - {local.inquilino} {yaRegistrado ? '✓' : ''}
-                              {local.ultimaLectura > 0 ? ` (${local.ultimaLectura} m³)` : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
-                      {searchTerm && filteredLocales.length === 0 && (
-                        <p className="text-sm text-gray-500 mt-2">No se encontraron locales</p>
-                      )}
-                    </div>
-
-                    {selectedLocal && (
-                      <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl">
-                        <p className="text-sm text-yellow-800">
-                          <strong>Local {selectedLocal} - {locales.find(l => String(l.numero) === String(selectedLocal))?.inquilino}</strong>
-                          <br />
-                          Última lectura: {locales.find(l => String(l.numero) === String(selectedLocal))?.ultimaLectura || 0} m³
-                          {locales.find(l => String(l.numero) === String(selectedLocal))?.fechaUltimaLectura && (
-                            <span className="block text-xs mt-1">
-                              Fecha: {new Date(locales.find(l => String(l.numero) === String(selectedLocal)).fechaUltimaLectura).toLocaleDateString()}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Lectura del Medidor (m³) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={lectura}
-                        onChange={(e) => setLectura(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                        placeholder="Ej: 1234.56"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Foto del Medidor (opcional)
-                      </label>
-                      <input
-                        id="foto-input"
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handleFileChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                      />
-                      {foto && (
-                        <div className="mt-4">
-                          <img src={foto} alt="Preview" className="w-full max-h-64 object-contain rounded-xl border border-gray-300 shadow-sm" />
-                        </div>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={handleSubmit}
-                      disabled={loading}
-                      className="w-full flex items-center justify-center gap-2 bg-verde-lgm hover:bg-[#7a8560] disabled:bg-gray-400 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg"
-                    >
-                      <Camera className="w-5 h-5" />
-                      {loading ? 'Guardando...' : 'Registrar Lectura'}
-                    </button>
-
-                    {!isOnline && (
-                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                        <p className="text-sm text-yellow-800 text-center">
-                          <strong>Modo Offline</strong> - Los registros se guardan localmente y se sincronizarán automáticamente cuando recuperes la conexión.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-gray-800">Mis Registros</h2>
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm text-gray-700">Ver fecha:</label>
-                      <input
-                        type="date"
-                        value={fechaFiltroGuardia}
-                        onChange={(e) => setFechaFiltroGuardia(e.target.value)}
-                        className="px-3 py-1 border border-gray-300 rounded-lg"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    {registros
-                      .filter(r => {
-                        if (!r.fecha) return false;
-                        const fechaRegistro = obtenerFechaLocal(r.fecha);
-                        return r.username === user.username && fechaRegistro === fechaFiltroGuardia;
-                      })
-                      .sort(ordenarRegistros)
-                      .map(r => (
-                        <div key={r.firebaseId || r.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-800">{r.local} - {r.inquilino}</p>
-                            <p className="text-sm text-gray-600">
-                              {r.lectura} m³ - {r.fecha ? new Date(r.fecha).toLocaleTimeString() : 'Hora no disponible'}
-                              {r.lecturaAnterior && (
-                                <span className="text-red-600 ml-2">(Corregido de {r.lecturaAnterior} m³)</span>
-                              )}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {r.firebaseId ? (
-                                <span className="text-green-600">✓ Sincronizado con Firebase</span>
-                              ) : (
-                                <span className="text-yellow-600">● Guardado localmente (offline)</span>
-                              )}
-                              {r.fechaCorreccion && (
-                                <span className="text-blue-600 ml-2">● Corregido el {new Date(r.fechaCorreccion).toLocaleDateString()}</span>
-                              )}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => iniciarEdicion(r)}
-                              className="flex items-center gap-1 px-3 py-1 bg-azul-lgm hover:bg-[#1a1f45] text-white rounded-lg text-xs transition-colors"
-                            >
-                              <Edit className="w-3 h-3" />
-                              {r.fechaCorreccion ? 'Recorregir' : 'Editar'}
-                            </button>
-                            <button
-                              onClick={() => eliminarRegistro(r)}
-                              className="flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs transition-colors"
-                            >
-                              <Trash className="w-3 h-3" />
-                              Eliminar
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    {registros.filter(r => {
-                      if (!r.fecha) return false;
-                      const fechaRegistro = obtenerFechaLocal(r.fecha);
-                      return r.username === user.username && fechaRegistro === fechaFiltroGuardia;
-                    }).length === 0 && (
-                      <p className="text-center text-gray-500 py-4">
-                        {fechaFiltroGuardia === obtenerHoy() 
-                          ? 'No has registrado ningún local hoy' 
-                          : `No hay registros para el ${fechaFiltroGuardia}`}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Modal de Edición para Guardia */}
-                {editandoRegistro && (
-                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-gray-200">
-                      <h3 className="text-xl font-bold text-gray-800 mb-4">
-                        {editandoRegistro.fecha && obtenerFechaLocal(editandoRegistro.fecha) !== obtenerHoy() 
-                          ? 'Corregir Lectura Anterior' 
-                          : 'Editar Lectura'}
-                      </h3>
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-sm text-gray-600 mb-2">Local: <span className="font-semibold">{editandoRegistro.local}</span></p>
-                          <p className="text-sm text-gray-600 mb-4">Inquilino: <span className="font-semibold">{editandoRegistro.inquilino}</span></p>
-                          {editandoRegistro.fecha && obtenerFechaLocal(editandoRegistro.fecha) !== obtenerHoy() && (
-                            <div className="bg-yellow-50 p-3 rounded-lg mb-3">
-                              <p className="text-sm text-yellow-800">
-                                <strong>⚠️ Corrigiendo lectura anterior</strong><br/>
-                                Fecha original: {obtenerFechaLocal(editandoRegistro.fecha)}
-                                {editandoRegistro.fechaCorreccion && (
-                                  <span className="block">
-                                    Última corrección: {new Date(editandoRegistro.fechaCorreccion).toLocaleDateString()}
-                                  </span>
-                                )}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Nueva Lectura (m³) *
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={editLectura}
-                            onChange={(e) => setEditLectura(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm focus:border-transparent transition-all"
-                            placeholder="Ej: 1234.56"
-                          />
-                          {editandoRegistro.lectura && (
-                            <p className="text-sm text-gray-500 mt-1">
-                              Lectura actual: {editandoRegistro.lectura} m³
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex gap-4 pt-4">
-                          <button
-                            onClick={guardarEdicion}
-                            disabled={loading}
-                            className="flex-1 bg-verde-lgm hover:bg-[#7a8560] disabled:bg-gray-400 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105"
-                          >
-                            {loading ? 'Guardando...' : editandoRegistro.fecha && obtenerFechaLocal(editandoRegistro.fecha) !== obtenerHoy() ? 'Corregir' : 'Guardar'}
-                          </button>
-                          <button
-                            onClick={cancelarEdicion}
-                            disabled={loading}
-                            className="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+        const ImageUploader = memo(({ foto, onFileChange, loading }) => (
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Foto del Medidor (opcional)</label>
+                <input id="foto-input" type="file" accept="image/*" capture="environment" onChange={onFileChange} disabled={loading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm" />
+                {foto && <div className="mt-4"><img src={foto} alt="Preview" className="w-full max-h-64 object-contain rounded-xl border border-gray-300 shadow-sm" /></div>}
             </div>
-          );
+        ));
+
+        const EditModal = memo(({ editandoRegistro, editLectura, setEditLectura, onGuardar, onCancelar, loading }) => {
+            if (!editandoRegistro) return null;
+            const esCorreccionPasada = editandoRegistro.fecha && obtenerFechaLocal(editandoRegistro.fecha) !== obtenerHoy();
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">{esCorreccionPasada ? 'Corregir Lectura Anterior' : 'Editar Lectura'}</h3>
+                        <div className="space-y-4">
+                            <p className="text-sm text-gray-600">Local: <span className="font-semibold">{editandoRegistro.local}</span></p>
+                            {esCorreccionPasada && <div className="bg-yellow-50 p-3 rounded-lg"><p className="text-sm text-yellow-800"><strong>⚠️ Corrigiendo lectura anterior</strong><br/>Fecha original: {obtenerFechaLocal(editandoRegistro.fecha)}</p></div>}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Nueva Lectura (m³) *</label>
+                                <input type="number" step="0.01" value={editLectura} onChange={e => setEditLectura(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm" />
+                                {editandoRegistro.lectura && <p className="text-sm text-gray-500 mt-1">Lectura actual: {editandoRegistro.lectura} m³</p>}
+                            </div>
+                            <div className="flex gap-4 pt-4">
+                                <button onClick={onGuardar} disabled={loading} className="flex-1 bg-verde-lgm hover:bg-[#7a8560] disabled:bg-gray-400 text-white font-semibold py-3 rounded-xl transition-all">
+                                    {loading ? 'Guardando...' : esCorreccionPasada ? 'Corregir' : 'Guardar'}
+                                </button>
+                                <button onClick={onCancelar} disabled={loading} className="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-semibold py-3 rounded-xl">Cancelar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        });
+
+        // ---------- COMPONENTES DEL ADMIN (memoizados) ----------
+        const AdminDashboard = memo(({ registros, locales }) => {
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            const consumoMensual = useMemo(() => {
+                const map = {};
+                registros.forEach(r => {
+                    if (!r.fecha || !r.lectura) return;
+                    const fecha = new Date(r.fecha);
+                    const mes = fecha.getMonth();
+                    const anio = fecha.getFullYear();
+                    const key = `${anio}-${mes}`;
+                    const local = locales.find(l => String(l.numero) === String(r.local));
+                    if (local && local.ultimaLectura) {
+                        const consumo = r.lectura - local.ultimaLectura;
+                        if (consumo > 0 && consumo < 10000) {
+                            if (!map[key]) map[key] = { mes, anio, total: 0, registros:0 };
+                            map[key].total += consumo;
+                            map[key].registros++;
+                        }
+                    }
+                });
+                return Object.values(map).sort((a,b) => a.anio-b.anio || a.mes-b.mes);
+            }, [registros, locales]);
+
+            const top10 = useMemo(() => {
+                const cons = {};
+                registros.forEach(r => {
+                    if (!r.fecha || !r.lectura) return;
+                    const local = locales.find(l => String(l.numero) === String(r.local));
+                    if (local && local.ultimaLectura) {
+                        const consumo = r.lectura - local.ultimaLectura;
+                        if (consumo > 0 && consumo < 10000) {
+                            if (!cons[r.local]) cons[r.local] = { local: r.local, inquilino: r.inquilino, consumoTotal: 0, registros: 0 };
+                            cons[r.local].consumoTotal += consumo;
+                            cons[r.local].registros++;
+                        }
+                    }
+                });
+                return Object.values(cons).sort((a,b) => b.consumoTotal - a.consumoTotal).slice(0,10);
+            }, [registros, locales]);
+
+            useEffect(() => {
+                if (chartRef.current) {
+                    if (chartInstance.current) chartInstance.current.destroy();
+                    const ctx = chartRef.current.getContext('2d');
+                    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                    chartInstance.current = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: consumoMensual.map(c => `${meses[c.mes]} ${c.anio}`),
+                            datasets: [{
+                                label: 'Consumo Total (m³)',
+                                data: consumoMensual.map(c => c.total.toFixed(2)),
+                                backgroundColor: 'rgba(145,150,119,0.6)',
+                                borderColor: 'rgba(145,150,119,1)',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display:true }, title: { display:true, text:'Consumo Mensual de Agua' } },
+                            scales: { y: { beginAtZero:true, title: { display:true, text:'Metros Cúbicos (m³)' } } }
+                        }
+                    });
+                }
+                return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+            }, [consumoMensual]);
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><BarChart className="w-6 h-6 text-verde-lgm" /> Consumo Mensual de Agua</h2>
+                        <div style={{ height: '400px' }}><canvas ref={chartRef}></canvas></div>
+                    </div>
+                    <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Award className="w-6 h-6 text-yellow-500" /> Top 10 Locales con Mayor Consumo</h2>
+                        {top10.length === 0 ? <p className="text-center text-gray-500 py-8">No hay datos suficientes</p> : (
+                            <div className="space-y-3">
+                                {top10.map((item, idx) => (
+                                    <div key={item.local} className="flex items-center justify-between p-4 bg-gradient-to-r from-verde-lgm to-azul-lgm text-white rounded-xl shadow-md">
+                                        <div className="flex items-center gap-4">
+                                            <div className="bg-white text-azul-lgm w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg">{idx+1}</div>
+                                            <div><p className="font-semibold text-lg">Local {item.local} - {item.inquilino}</p><p className="text-sm opacity-90">{item.registros} registros</p></div>
+                                        </div>
+                                        <div className="text-right"><p className="text-2xl font-bold">{item.consumoTotal.toFixed(2)} m³</p><p className="text-sm opacity-90">consumo total</p></div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        });
+
+        const AdminAlertas = memo(({ registros, locales }) => {
+            const anomalias = useMemo(() => {
+                const res = [];
+                const hoy = obtenerHoy();
+                registros.forEach(r => {
+                    if (!r.fecha || !r.lectura) return;
+                    const fechaReg = obtenerFechaLocal(r.fecha);
+                    if ((new Date(hoy) - new Date(fechaReg)) > 7*86400000) return;
+                    const local = locales.find(l => String(l.numero) === String(r.local));
+                    if (!local || !local.ultimaLectura) return;
+                    const consumo = r.lectura - local.ultimaLectura;
+                    if (consumo < 0) res.push({ tipo:'error', local:r.local, inquilino:r.inquilino, mensaje:`Lectura menor a anterior (${local.ultimaLectura} → ${r.lectura})`, fecha:fechaReg, severidad:'alta' });
+                    else if (consumo > 500) res.push({ tipo:'warning', local:r.local, inquilino:r.inquilino, mensaje:`Consumo muy alto: ${consumo.toFixed(2)} m³`, fecha:fechaReg, severidad:'alta' });
+                    else if (consumo > 200) res.push({ tipo:'warning', local:r.local, inquilino:r.inquilino, mensaje:`Consumo elevado: ${consumo.toFixed(2)} m³`, fecha:fechaReg, severidad:'media' });
+                    else if (consumo === 0) res.push({ tipo:'info', local:r.local, inquilino:r.inquilino, mensaje:'Sin consumo', fecha:fechaReg, severidad:'baja' });
+                });
+                return res.sort((a,b) => ({ alta:0,media:1,baja:2 }[a.severidad] - { alta:0,media:1,baja:2 }[b.severidad]));
+            }, [registros, locales]);
+
+            return (
+                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><AlertTriangle className="w-6 h-6 text-red-500" /> Alertas de Lecturas Anómalas (Últimos 7 días)</h2>
+                    {anomalias.length === 0 ? (
+                        <div className="text-center py-12"><CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" /><p className="text-xl font-semibold text-gray-700">¡Todo en orden!</p><p className="text-gray-500">No se detectaron anomalías</p></div>
+                    ) : (
+                        <div className="space-y-3">
+                            {anomalias.map((a,i) => {
+                                let bg = 'bg-gray-50', border = 'border-gray-200', icon = 'text-gray-600';
+                                if (a.severidad === 'alta') { bg='bg-red-50'; border='border-red-300'; icon='text-red-600'; }
+                                else if (a.severidad === 'media') { bg='bg-yellow-50'; border='border-yellow-300'; icon='text-yellow-600'; }
+                                else { bg='bg-blue-50'; border='border-blue-300'; icon='text-blue-600'; }
+                                return (
+                                    <div key={i} className={`${bg} border ${border} p-4 rounded-xl`}>
+                                        <div className="flex items-start gap-3">
+                                            <AlertTriangle className={`w-6 h-6 ${icon} flex-shrink-0 mt-1`} />
+                                            <div className="flex-1">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div><p className="font-semibold text-gray-800">Local {a.local} - {a.inquilino}</p><p className="text-sm text-gray-600">{a.mensaje}</p></div>
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${a.severidad==='alta'?'bg-red-200 text-red-800':a.severidad==='media'?'bg-yellow-200 text-yellow-800':'bg-blue-200 text-blue-800'}`}>{a.severidad.toUpperCase()}</span>
+                                                </div>
+                                                <p className="text-xs text-gray-500">Fecha: {a.fecha}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            );
+        });
+
+        const AdminHistorial = memo(({ registros }) => {
+            const correcciones = useMemo(() => {
+                return registros.filter(r => r.fechaCorreccion).sort((a,b) => new Date(b.fechaCorreccion) - new Date(a.fechaCorreccion)).slice(0,50);
+            }, [registros]);
+            return (
+                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><History className="w-6 h-6 text-blue-600" /> Historial de Correcciones (Últimas 50)</h2>
+                    {correcciones.length === 0 ? <p className="text-center text-gray-500 py-12">No hay correcciones registradas</p> : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gray-50"><tr><th className="px-4 py-3 text-left text-sm font-semibold">Fecha Corrección</th><th className="px-4 py-3 text-left text-sm font-semibold">Local</th><th className="px-4 py-3 text-left text-sm font-semibold">Inquilino</th><th className="px-4 py-3 text-left text-sm font-semibold">Lectura Original</th><th className="px-4 py-3 text-left text-sm font-semibold">Lectura Corregida</th><th className="px-4 py-3 text-left text-sm font-semibold">Corregido Por</th><th className="px-4 py-3 text-left text-sm font-semibold">Fecha Original</th></tr></thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {correcciones.map((r,i) => (
+                                        <tr key={r.firebaseId||r.id||i} className="hover:bg-gray-50">
+                                            <td className="px-4 py-3 text-sm text-gray-700">{new Date(r.fechaCorreccion).toLocaleString('es-EC')}</td>
+                                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
+                                            <td className="px-4 py-3 text-sm text-red-600 font-semibold">{r.lecturaAnterior} m³</td>
+                                            <td className="px-4 py-3 text-sm text-green-600 font-semibold">{r.lectura} m³</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700">{r.corregidoPor}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-500">{new Date(r.fecha).toLocaleDateString('es-EC')}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            );
+        });
+
+        const AdminCalendario = memo(({ registros, locales, mesSeleccionado, anioSeleccionado }) => {
+            const dias = useMemo(() => {
+                const primerDia = new Date(anioSeleccionado, mesSeleccionado, 1);
+                const ultimoDia = new Date(anioSeleccionado, mesSeleccionado+1, 0);
+                const celdas = [];
+                for (let i=0; i<primerDia.getDay(); i++) celdas.push(null);
+                for (let d=1; d<=ultimoDia.getDate(); d++) {
+                    const fecha = `${anioSeleccionado}-${String(mesSeleccionado+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    const regsDia = registros.filter(r => r.fecha && obtenerFechaLocal(r.fecha) === fecha);
+                    const porcentaje = (regsDia.length / locales.length) * 100;
+                    let estado = 'empty';
+                    if (porcentaje >= 90) estado = 'complete';
+                    else if (porcentaje >= 50) estado = 'partial';
+                    celdas.push({ dia:d, fecha, registros:regsDia.length, total:locales.length, porcentaje:Math.round(porcentaje), estado });
+                }
+                return celdas;
+            }, [registros, locales, mesSeleccionado, anioSeleccionado]);
+
+            return (
+                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Calendar className="w-6 h-6 text-verde-lgm" /> Calendario de Lecturas</h2>
+                    </div>
+                    <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2"><div className="w-6 h-6 bg-green-200 border border-green-400 rounded"></div><span className="text-sm">≥ 90%</span></div>
+                        <div className="flex items-center gap-2"><div className="w-6 h-6 bg-yellow-200 border border-yellow-400 rounded"></div><span className="text-sm">50-89%</span></div>
+                        <div className="flex items-center gap-2"><div className="w-6 h-6 bg-red-200 border border-red-400 rounded"></div><span className="text-sm">{'<'} 50%</span></div>
+                    </div>
+                    <div className="grid grid-cols-7 gap-2">
+                        {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="text-center font-semibold text-gray-700 py-2">{d}</div>)}
+                        {dias.map((d,i) => {
+                            if (!d) return <div key={`e-${i}`} className="calendar-day"></div>;
+                            let bg = 'calendar-day-empty';
+                            if (d.estado === 'complete') bg = 'calendar-day-complete';
+                            else if (d.estado === 'partial') bg = 'calendar-day-partial';
+                            return (
+                                <div key={d.dia} className={`calendar-day ${bg} p-2 rounded-lg`}>
+                                    <div className="font-bold text-gray-800">{d.dia}</div>
+                                    <div className="text-xs text-gray-600 mt-1">{d.registros}/{d.total}</div>
+                                    <div className="text-xs font-semibold text-gray-700 mt-1">{d.porcentaje}%</div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        });
+
+        // ---------- VISTA LOGIN ----------
+        const LoginView = memo(({ onLogin, isOnline, firebaseInitialized, firebaseError }) => {
+            const [user, setUser] = useState(''); const [pass, setPass] = useState(''); const [nombre, setNombre] = useState(''); const [error, setError] = useState('');
+            const handle = () => {
+                const usuarios = { guardia: { password:'1234', rol:'guardia' }, admin: { password:'admin123', nombre:'Administrador', rol:'admin' } };
+                if (user === 'guardia') {
+                    if (usuarios.guardia.password === pass) { if (!nombre.trim()) { setError('Ingrese nombre'); return; } onLogin({ username:user, nombre:nombre.trim(), rol:'guardia' }); }
+                    else setError('Contraseña incorrecta');
+                } else if (usuarios[user] && usuarios[user].password === pass) onLogin({ username:user, ...usuarios[user] });
+                else setError('Usuario o contraseña incorrectos');
+            };
+            return (
+                <div className="min-h-screen bg-azul-lgm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+                        <div className="text-center mb-8">
+                            <h1 className="text-4xl font-bold text-azul-lgm mb-2">La Gran Manzana</h1>
+                            <div className="text-sm text-gray-600"><p className="font-semibold">Centro Comercial</p><p>Sistema de Registro de Medidores</p></div>
+                            <div className="mt-3 flex items-center justify-center gap-2">
+                                {isOnline ? <span className="flex items-center gap-1 text-green-600 text-sm"><Wifi className="w-4 h-4" />{firebaseInitialized?'Conectado':'Local'}</span> : <span className="flex items-center gap-1 text-orange-600 text-sm"><WifiOff className="w-4 h-4" />Sin conexión</span>}
+                            </div>
+                            {firebaseError && <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">{firebaseError}</div>}
+                        </div>
+                        <div className="space-y-4">
+                            <input type="text" value={user} onChange={e=>setUser(e.target.value)} onKeyPress={e=>e.key==='Enter'&&handle()} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm" placeholder="Usuario" />
+                            <input type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyPress={e=>e.key==='Enter'&&handle()} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm" placeholder="Contraseña" />
+                            {user === 'guardia' && <input type="text" value={nombre} onChange={e=>setNombre(e.target.value)} onKeyPress={e=>e.key==='Enter'&&handle()} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm" placeholder="Nombre completo" />}
+                            {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-2"><AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" /><span className="text-sm">{error}</span></div>}
+                            <button onClick={handle} className="w-full bg-verde-lgm hover:bg-[#7a8560] text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg">Iniciar Sesión</button>
+                        </div>
+                        <div className="mt-6 p-4 bg-gray-50 rounded-xl text-sm text-gray-600"><p className="font-semibold mb-2">Credenciales:</p><p><strong>Guardias:</strong> guardia / 1234</p><p className="text-xs text-gray-500 mt-1">* Ingrese nombre completo</p></div>
+                    </div>
+                </div>
+            );
+        });
+
+        // ---------- APP PRINCIPAL ----------
+        const MedidorApp = () => {
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('login');
+            const [locales, setLocales] = useState([]);
+            const [selectedLocal, setSelectedLocal] = useState('');
+            const [lectura, setLectura] = useState('');
+            const [foto, setFoto] = useState(null);
+            const [registros, setRegistros] = useState([]);
+            const [error, setError] = useState('');
+            const [success, setSuccess] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [debouncedSearch, setDebouncedSearch] = useState('');
+            const [isOnline, setIsOnline] = useState(navigator.onLine);
+            const [syncStatus, setSyncStatus] = useState('');
+            const [firebaseError, setFirebaseError] = useState('');
+            const [editandoRegistro, setEditandoRegistro] = useState(null);
+            const [editLectura, setEditLectura] = useState('');
+            const [fechaInicio, setFechaInicio] = useState('');
+            const [fechaFin, setFechaFin] = useState('');
+            const [syncing, setSyncing] = useState(false);
+            const [fechaFiltroGuardia, setFechaFiltroGuardia] = useState('');
+            const [mostrarHistorial, setMostrarHistorial] = useState(false);
+            const [localCorreccion, setLocalCorreccion] = useState('');
+            const [fechaCorreccion, setFechaCorreccion] = useState('');
+            // Admin
+            const [activeTab, setActiveTab] = useState('registros');
+            const [mesSeleccionado, setMesSeleccionado] = useState(new Date().getMonth());
+            const [anioSeleccionado, setAnioSeleccionado] = useState(new Date().getFullYear());
+
+            useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchTerm), 200); return () => clearTimeout(t); }, [searchTerm]);
+
+            // Carga inicial
+            useEffect(() => {
+                const base = localesData.map(l => ({ ...l, ultimaLectura:0, fechaUltimaLectura:null }));
+                const saved = localStorage.getItem('locales-gran-manzana');
+                if (saved) try {
+                    JSON.parse(saved).forEach(s => { const idx = base.findIndex(b => String(b.numero)===String(s.numero)); if(idx!==-1 && s.ultimaLectura) { base[idx].ultimaLectura = s.ultimaLectura; base[idx].fechaUltimaLectura = s.fechaUltimaLectura; } });
+                } catch {}
+                setLocales(base);
+                setRegistros(cargarRegistrosLocales().sort(ordenarRegistros));
+                if (firebaseInitialized) {
+                    cargarRegistrosRecientes(fbRegs => setRegistros(prev => [...prev.filter(r=>!r.firebaseId), ...fbRegs].sort(ordenarRegistros)));
+                    const ref = database.ref('registros').orderByChild('fecha').startAt(new Date(Date.now()-30*86400000).toISOString());
+                    const listener = ref.on('value', snap => {
+                        const data = snap.val();
+                        if (data) setRegistros(prev => [...prev.filter(r=>!r.firebaseId), ...Object.keys(data).map(k=>({firebaseId:k,...data[k]}))].sort(ordenarRegistros));
+                    }, err => setFirebaseError(err.message));
+                    return () => ref.off('value', listener);
+                }
+            }, []);
+
+            useEffect(() => {
+                const goOnline = () => { setIsOnline(true); setSyncStatus('Conectado - Sincronizando...'); sincronizarRegistrosOffline(); };
+                const goOffline = () => { setIsOnline(false); setSyncStatus('Modo offline'); setTimeout(()=>setSyncStatus(''),3000); };
+                window.addEventListener('online', goOnline); window.addEventListener('offline', goOffline);
+                return () => { window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline); };
+            }, []);
+
+            useEffect(() => { if (user && view==='registro') setFechaFiltroGuardia(obtenerHoy()); }, [user, view]);
+
+            const sincronizarRegistrosOffline = useCallback(async () => {
+                if (!firebaseInitialized || !database || !isOnline) return;
+                setSyncing(true); setSyncStatus('Sincronizando...');
+                const offline = cargarRegistrosLocales();
+                let ok=0, err=0;
+                for (const r of offline) {
+                    try { await guardarRegistroFirebase(r); eliminarRegistroLocal(r.id); ok++; } catch { err++; }
+                }
+                setSyncStatus(`Sincronizados: ${ok}, errores: ${err}`); setTimeout(()=>setSyncStatus(''),3000);
+                if (ok>0) cargarRegistrosRecientes(fb => setRegistros(prev => [...prev.filter(p=>!p.firebaseId), ...fb].sort(ordenarRegistros)));
+                setSyncing(false);
+            }, [isOnline]);
+
+            const validarLectura = useCallback((lect, localId, excl=null, esCorreccion=false) => {
+                const local = locales.find(l=>String(l.numero)===String(localId));
+                const num = parseFloat(lect);
+                if (!localId) return 'Debe seleccionar un local';
+                if (!lect || lect.trim()==='') return 'Ingrese lectura';
+                if (isNaN(num)) return 'Número inválido';
+                if (num < 0) return 'No puede ser negativa';
+                if (num > 999999) return 'Lectura demasiado alta';
+                if (!esCorreccion && local.ultimaLectura && num < local.ultimaLectura) return { tipo:'advertencia', mensaje:`⚠️ ADVERTENCIA\n\nLectura menor a la anterior (${local.ultimaLectura} m³).\nDiferencia: -${(local.ultimaLectura-num).toFixed(2)} m³\n\n¿Continuar?` };
+                if (!esCorreccion && local.ultimaLectura && num > local.ultimaLectura+1000) return { tipo:'advertencia', mensaje:`⚠️ Consumo muy alto: ${(num-local.ultimaLectura).toFixed(2)} m³\n¿Continuar?` };
+                const hoy = obtenerHoy();
+                const duplicado = registros.find(r => r.fecha && obtenerFechaLocal(r.fecha)===hoy && String(r.local)===String(localId) && (!excl || (r.firebaseId!==excl.firebaseId && r.id!==excl.id)));
+                if (duplicado && !esCorreccion) return 'Este local ya fue registrado hoy';
+                return null;
+            }, [locales, registros]);
+
+            const buscarRegistrosCorreccion = useCallback(() => {
+                if (!fechaCorreccion || !localCorreccion) return [];
+                return registros.filter(r => r.fecha && obtenerFechaLocal(r.fecha)===fechaCorreccion && String(r.local)===String(localCorreccion) && r.username===user?.username);
+            }, [registros, fechaCorreccion, localCorreccion, user]);
+
+            const handleFileChange = useCallback(async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (file.size > 10000000) { setError('Foto muy grande (max 10MB)'); return; }
+                setLoading(true); setError('');
+                try { setFoto(await comprimirImagenNoBloqueante(file)); setSuccess('✓ Foto cargada'); setTimeout(()=>setSuccess(''),2000); }
+                catch { setError('Error procesando imagen'); } finally { setLoading(false); }
+            }, []);
+
+            const handleSubmit = useCallback(async () => {
+                setLoading(true); setError(''); setSuccess('');
+                const v = validarLectura(lectura, selectedLocal);
+                if (v) {
+                    if (typeof v === 'string') { setError(v); setLoading(false); return; }
+                    if (v.tipo==='advertencia' && !window.confirm(v.mensaje)) { setError('Cancelado'); setLoading(false); return; }
+                }
+                try {
+                    const ahora = new Date().toISOString();
+                    const num = parseFloat(lectura);
+                    const localData = locales.find(l=>String(l.numero)===String(selectedLocal));
+                    const nuevo = { id:Date.now(), local:selectedLocal, inquilino:localData.inquilino, lectura:num, foto, fecha:ahora, guardia:user.nombre, username:user.username };
+                    guardarRegistroLocal(nuevo);
+                    const nuevosLocales = locales.map(l => String(l.numero)===String(selectedLocal) ? {...l, ultimaLectura:num, fechaUltimaLectura:ahora} : l);
+                    setLocales(nuevosLocales); guardarLocalesConDebounce(nuevosLocales);
+                    setRegistros(prev => [...prev, nuevo].sort(ordenarRegistros));
+                    setSelectedLocal(''); setLectura(''); setFoto(null); setSearchTerm('');
+                    document.getElementById('foto-input') && (document.getElementById('foto-input').value = '');
+                    setSuccess(`✓ Local ${selectedLocal} registrado`);
+                    guardarEnFirebaseEnSegundoPlano(nuevo);
+                } catch (err) { setError('Error al guardar: '+err.message); } finally { setLoading(false); }
+            }, [lectura, selectedLocal, foto, locales, user, validarLectura]);
+
+            const guardarEdicion = useCallback(async () => {
+                if (!editandoRegistro) return;
+                setLoading(true); setError(''); setSuccess('');
+                const esPasada = editandoRegistro.fecha && obtenerFechaLocal(editandoRegistro.fecha) !== obtenerHoy();
+                const v = validarLectura(editLectura, editandoRegistro.local, editandoRegistro, esPasada);
+                if (v) {
+                    if (typeof v === 'string') { setError(v); setLoading(false); return; }
+                    if (v.tipo==='advertencia' && !window.confirm(v.mensaje)) { setError('Cancelado'); setLoading(false); return; }
+                }
+                try {
+                    const num = parseFloat(editLectura);
+                    const actualizado = { ...editandoRegistro, lectura:num, fechaCorreccion:new Date().toISOString(), corregidoPor:user.nombre, lecturaAnterior:editandoRegistro.lectura };
+                    let ok = false;
+                    if (firebaseInitialized && isOnline && editandoRegistro.firebaseId) {
+                        try { await actualizarRegistroFirebase(editandoRegistro.firebaseId, { lectura:num, fechaCorreccion:actualizado.fechaCorreccion, corregidoPor:actualizado.corregidoPor, lecturaAnterior:actualizado.lecturaAnterior }); ok = true; } catch {}
+                    }
+                    if (!ok && editandoRegistro.id) {
+                        const locs = cargarRegistrosLocales();
+                        const idx = locs.findIndex(r => r.id === editandoRegistro.id);
+                        if (idx !== -1) { locs[idx] = actualizado; localStorage.setItem('registros-offline-gran-manzana', JSON.stringify(locs)); ok = true; }
+                    }
+                    if (ok) {
+                        setRegistros(prev => prev.map(r => (r.firebaseId===editandoRegistro.firebaseId || r.id===editandoRegistro.id) ? actualizado : r));
+                        if (!esPasada) setLocales(prev => { const n = prev.map(l => String(l.numero)===String(editandoRegistro.local) ? {...l, ultimaLectura:num, fechaUltimaLectura:actualizado.fechaCorreccion} : l); guardarLocalesConDebounce(n); return n; });
+                        setSuccess('✓ Lectura corregida'); setEditandoRegistro(null); setEditLectura('');
+                    } else setError('No se pudo actualizar');
+                } catch (err) { setError('Error: '+err.message); } finally { setLoading(false); }
+            }, [editandoRegistro, editLectura, user, isOnline, validarLectura]);
+
+            const eliminarRegistro = useCallback(async (reg) => {
+                if (!window.confirm('¿Eliminar este registro?')) return;
+                setLoading(true);
+                try {
+                    let ok = false;
+                    if (firebaseInitialized && isOnline && reg.firebaseId) { try { await eliminarRegistroFirebase(reg.firebaseId); ok = true; } catch {} }
+                    if (!ok && reg.id) ok = eliminarRegistroLocal(reg.id);
+                    if (ok) { setRegistros(prev => prev.filter(r => r.firebaseId!==reg.firebaseId && r.id!==reg.id)); setSuccess('✓ Eliminado'); }
+                    else setError('No se pudo eliminar');
+                } catch (err) { setError('Error: '+err.message); } finally { setLoading(false); }
+            }, [isOnline]);
+
+            const exportarExcel = useCallback(() => {
+                const hoy = obtenerHoy();
+                const filtrados = registros.filter(r => r.fecha && obtenerFechaLocal(r.fecha) === hoy).sort(ordenarRegistros);
+                let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
+                filtrados.forEach(r => {
+                    const f = new Date(r.fecha);
+                    csv += `${f.toLocaleDateString('es-EC')};${f.toLocaleTimeString('es-EC')};${String(r.local).replace(/;/g,',')};${String(r.inquilino).replace(/;/g,',')};${r.lectura?.toFixed(2)??'0'};${String(r.guardia).replace(/;/g,',')};${r.foto?'Sí':'No'}\n`;
+                });
+                const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `lecturas-${hoy}.csv`; a.click(); URL.revokeObjectURL(a.href);
+            }, [registros]);
+
+            const exportarExcelPorFechas = useCallback(() => {
+                if (!fechaInicio) { setError('Seleccione fecha inicio'); return; }
+                const fin = fechaFin || fechaInicio;
+                const filtrados = registros.filter(r => r.fecha && obtenerFechaLocal(r.fecha) >= fechaInicio && obtenerFechaLocal(r.fecha) <= fin).sort(ordenarRegistros);
+                if (filtrados.length===0) { setError('No hay registros'); return; }
+                let csv = 'Fecha;Hora;Local;Inquilino;Lectura (m³);Guardia;Tiene Foto\n';
+                filtrados.forEach(r => { const f = new Date(r.fecha); csv += `${f.toLocaleDateString('es-EC')};${f.toLocaleTimeString('es-EC')};${String(r.local).replace(/;/g,',')};${String(r.inquilino).replace(/;/g,',')};${r.lectura?.toFixed(2)??'0'};${String(r.guardia).replace(/;/g,',')};${r.foto?'Sí':'No'}\n`; });
+                const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `lecturas-${fechaInicio}-a-${fin}.csv`; a.click(); URL.revokeObjectURL(a.href);
+                setSuccess(`Excel exportado: ${filtrados.length} registros`);
+            }, [registros, fechaInicio, fechaFin]);
+
+            const progreso = useMemo(() => {
+                const hoy = obtenerHoy();
+                const completados = registros.filter(r => r.fecha && obtenerFechaLocal(r.fecha)===hoy).length;
+                return { completados, total: locales.length, porcentaje: locales.length ? Math.round(completados/locales.length*100) : 0 };
+            }, [registros, locales]);
+
+            if (!user) return <LoginView onLogin={(u) => { setUser(u); setView(u.rol==='admin'?'admin':'registro'); }} isOnline={isOnline} firebaseInitialized={firebaseInitialized} firebaseError={firebaseError} />;
+
+            // ---------- VISTA ADMIN ----------
+            if (view === 'admin') {
+                const hoy = obtenerHoy();
+                const registrosHoy = registros.filter(r => r.fecha && obtenerFechaLocal(r.fecha)===hoy).sort(ordenarRegistros);
+                const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+                return (
+                    <div className="min-h-screen bg-gray-50 p-4">
+                        <div className="max-w-7xl mx-auto">
+                            <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-gray-200">
+                                <div className="flex justify-between items-center mb-6">
+                                    <div><h1 className="text-3xl font-bold text-azul-lgm mb-2">Panel Administrativo</h1><p className="text-gray-600">Bienvenido, <span className="font-semibold text-verde-lgm">{user.nombre}</span></p></div>
+                                    <div className="flex items-center gap-3">
+                                        {isOnline ? <span className="flex items-center gap-1 text-green-600 text-sm bg-green-50 px-3 py-1 rounded-full"><Wifi className="w-4 h-4" />{firebaseInitialized?'Firebase':'Local'}</span> : <span className="flex items-center gap-1 text-orange-600 text-sm bg-orange-50 px-3 py-1 rounded-full"><WifiOff className="w-4 h-4" />Offline</span>}
+                                        <button onClick={() => { setUser(null); setView('login'); }} className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"><LogOut className="w-4 h-4" />Salir</button>
+                                    </div>
+                                </div>
+                                {syncStatus && <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">{syncStatus}</div>}
+                                {firebaseError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">{firebaseError}</div>}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                    <div className="bg-azul-lgm text-white p-4 rounded-xl shadow-lg"><div className="flex items-center gap-3"><Calendar className="w-8 h-8 text-white" /><div><p className="text-sm opacity-90">Fecha</p><p className="text-xl font-bold">{new Date().toLocaleDateString()}</p></div></div></div>
+                                    <div className="bg-verde-lgm text-white p-4 rounded-xl shadow-lg"><div className="flex items-center gap-3"><CheckCircle className="w-8 h-8 text-white" /><div><p className="text-sm opacity-90">Registrados Hoy</p><p className="text-xl font-bold">{progreso.completados} / {progreso.total}</p></div></div></div>
+                                    <div className="bg-azul-lgm text-white p-4 rounded-xl shadow-lg"><div className="flex items-center gap-3"><Clock className="w-8 h-8 text-white" /><div><p className="text-sm opacity-90">Progreso</p><p className="text-xl font-bold">{progreso.porcentaje}%</p></div></div></div>
+                                </div>
+                                <div className="mb-6"><div className="w-full bg-gray-200 rounded-full h-4"><div className="bg-verde-lgm h-4 rounded-full transition-all duration-500 shadow-lg" style={{width:`${progreso.porcentaje}%`}}></div></div></div>
+                                <div className="flex flex-wrap gap-2">
+                                    <button onClick={()=>setActiveTab('registros')} className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab==='registros'?'tab-active':'tab-inactive hover:bg-gray-200'}`}>📋 Registros</button>
+                                    <button onClick={()=>setActiveTab('dashboard')} className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab==='dashboard'?'tab-active':'tab-inactive hover:bg-gray-200'}`}>📈 Dashboard</button>
+                                    <button onClick={()=>setActiveTab('alertas')} className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab==='alertas'?'tab-active':'tab-inactive hover:bg-gray-200'}`}>⚠️ Alertas</button>
+                                    <button onClick={()=>setActiveTab('historial')} className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab==='historial'?'tab-active':'tab-inactive hover:bg-gray-200'}`}>🕐 Correcciones</button>
+                                    <button onClick={()=>setActiveTab('calendario')} className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab==='calendario'?'tab-active':'tab-inactive hover:bg-gray-200'}`}>📅 Calendario</button>
+                                </div>
+                            </div>
+
+                            {activeTab === 'registros' && (
+                                <div>
+                                    {!isOnline && (
+                                        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center justify-between">
+                                            <div><p className="font-semibold text-yellow-800">Modo Offline</p><p className="text-sm text-yellow-700">Los registros se guardan localmente</p></div>
+                                            <button onClick={sincronizarRegistrosOffline} disabled={syncing||!isOnline} className="flex items-center gap-2 px-4 py-2 bg-azul-lgm hover:bg-[#1a1f45] disabled:bg-gray-400 text-white rounded-xl"><CloudUpload className="w-4 h-4" />{syncing?'Sincronizando...':'Sincronizar'}</button>
+                                        </div>
+                                    )}
+                                    <div className="bg-blue-50 p-6 rounded-xl mb-6 border border-blue-200">
+                                        <h3 className="text-xl font-bold text-azul-lgm mb-4 flex items-center gap-2"><Calendar className="w-6 h-6" /> Exportar Registros por Fechas</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                            <div><label className="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio *</label><input type="date" value={fechaInicio} onChange={e=>setFechaInicio(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm" /></div>
+                                            <div><label className="block text-sm font-medium text-gray-700 mb-2">Fecha Fin (opcional)</label><input type="date" value={fechaFin} onChange={e=>setFechaFin(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm" /><p className="text-xs text-gray-500 mt-1">Si no selecciona, solo la fecha de inicio</p></div>
+                                            <div className="flex items-end"><button onClick={exportarExcelPorFechas} disabled={!fechaInicio} className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-azul-lgm hover:bg-[#1a1f45] disabled:bg-gray-400 text-white rounded-xl transition-all font-semibold shadow-lg"><Download className="w-5 h-5" />Exportar por Fechas</button></div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4 mb-6">
+                                        <button onClick={exportarExcel} disabled={registrosHoy.length===0} className="flex items-center gap-2 px-6 py-3 bg-verde-lgm hover:bg-[#7a8560] disabled:bg-gray-400 text-white rounded-xl transition-all font-semibold shadow-lg"><Download className="w-5 h-5" />Exportar Hoy ({registrosHoy.length} registros)</button>
+                                    </div>
+                                    <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                                        <h2 className="text-2xl font-bold text-gray-800 mb-6">Registros de Hoy {firebaseInitialized ? '(Tiempo Real)' : '(Modo Local)'}</h2>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead className="bg-gray-50"><tr><th className="px-4 py-3 text-left text-sm font-semibold">Local</th><th className="px-4 py-3 text-left text-sm font-semibold">Inquilino</th><th className="px-4 py-3 text-left text-sm font-semibold">Lectura</th><th className="px-4 py-3 text-left text-sm font-semibold">Hora</th><th className="px-4 py-3 text-left text-sm font-semibold">Guardia</th><th className="px-4 py-3 text-left text-sm font-semibold">Foto</th><th className="px-4 py-3 text-left text-sm font-semibold">Estado</th><th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th></tr></thead>
+                                                <tbody className="divide-y divide-gray-200">
+                                                    {registrosHoy.length===0 ? <tr><td colSpan="8" className="px-4 py-8 text-center text-gray-500">No hay registros para hoy</td></tr> : registrosHoy.map(r => (
+                                                        <tr key={r.firebaseId||r.id} className="hover:bg-gray-50">
+                                                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.local}</td>
+                                                            <td className="px-4 py-3 text-sm text-gray-700">{r.inquilino}</td>
+                                                            <td className="px-4 py-3 text-sm text-gray-700 font-semibold">{r.lectura} m³{r.lecturaAnterior && <div className="text-xs text-red-600">Corregido: {r.lecturaAnterior} → {r.lectura}</div>}</td>
+                                                            <td className="px-4 py-3 text-sm text-gray-700">{new Date(r.fecha).toLocaleTimeString()}{r.fechaCorreccion && <div className="text-xs text-blue-600">Corregido: {new Date(r.fechaCorreccion).toLocaleTimeString()}</div>}</td>
+                                                            <td className="px-4 py-3 text-sm text-gray-700">{r.guardia}{r.corregidoPor && r.corregidoPor!==r.guardia && <div className="text-xs text-blue-600">Corregido por: {r.corregidoPor}</div>}</td>
+                                                            <td className="px-4 py-3">{r.foto ? <img src={r.foto} alt="medidor" className="w-16 h-16 object-cover rounded-lg cursor-pointer shadow-sm" onClick={()=>window.open(r.foto,'_blank')} /> : <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Sin foto</span>}</td>
+                                                            <td className="px-4 py-3">{r.firebaseId ? <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"><Wifi className="w-3 h-3" />En Firebase</span> : <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full"><WifiOff className="w-3 h-3" />Local</span>}{r.fechaCorreccion && <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mt-1">Corregido</span>}</td>
+                                                            <td className="px-4 py-3"><div className="flex gap-2"><button onClick={()=>{ setEditandoRegistro(r); setEditLectura(r.lectura); }} className="flex items-center gap-1 px-3 py-1 bg-azul-lgm hover:bg-[#1a1f45] text-white rounded-lg text-xs"><Edit className="w-3 h-3" />Editar</button><button onClick={()=>eliminarRegistro(r)} className="flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs"><Trash className="w-3 h-3" />Eliminar</button></div></td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {activeTab === 'dashboard' && <AdminDashboard registros={registros} locales={locales} />}
+                            {activeTab === 'alertas' && <AdminAlertas registros={registros} locales={locales} />}
+                            {activeTab === 'historial' && <AdminHistorial registros={registros} />}
+                            {activeTab === 'calendario' && (
+                                <div>
+                                    <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200 mb-6">
+                                        <div className="flex justify-end items-center gap-3">
+                                            <select value={mesSeleccionado} onChange={e=>setMesSeleccionado(parseInt(e.target.value))} className="px-4 py-2 border border-gray-300 rounded-lg">
+                                                {meses.map((m,idx)=> <option key={idx} value={idx}>{m}</option>)}
+                                            </select>
+                                            <select value={anioSeleccionado} onChange={e=>setAnioSeleccionado(parseInt(e.target.value))} className="px-4 py-2 border border-gray-300 rounded-lg">
+                                                {[2023,2024,2025,2026].map(a => <option key={a} value={a}>{a}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <AdminCalendario registros={registros} locales={locales} mesSeleccionado={mesSeleccionado} anioSeleccionado={anioSeleccionado} />
+                                </div>
+                            )}
+                        </div>
+                        <EditModal editandoRegistro={editandoRegistro} editLectura={editLectura} setEditLectura={setEditLectura} onGuardar={guardarEdicion} onCancelar={()=>{ setEditandoRegistro(null); setEditLectura(''); }} loading={loading} />
+                    </div>
+                );
+            }
+
+            // ---------- VISTA GUARDIA ----------
+            return (
+                <div className="min-h-screen bg-gray-50 p-4">
+                    <div className="max-w-2xl mx-auto">
+                        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-gray-200">
+                            <div className="flex justify-between items-center mb-6">
+                                <div><h1 className="text-2xl font-bold text-azul-lgm mb-2">Registro de Medidores</h1><p className="text-gray-600">Hola, <span className="font-semibold text-verde-lgm">{user.nombre}</span></p></div>
+                                <div className="flex items-center gap-3">
+                                    {isOnline ? <span className="flex items-center gap-1 text-green-600 text-sm bg-green-50 px-3 py-1 rounded-full"><Wifi className="w-4 h-4" />{firebaseInitialized?'Firebase':'Local'}</span> : <span className="flex items-center gap-1 text-orange-600 text-sm bg-orange-50 px-3 py-1 rounded-full"><WifiOff className="w-4 h-4" />Offline</span>}
+                                    <button onClick={() => { setUser(null); setView('login'); }} className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"><LogOut className="w-4 h-4" />Salir</button>
+                                </div>
+                            </div>
+                            {syncStatus && <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">{syncStatus}</div>}
+                            {firebaseError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">{firebaseError}</div>}
+                            <div className="bg-blue-50 p-4 rounded-xl mb-6 border border-gray-200">
+                                <p className="text-sm text-gray-700 mb-2">Progreso de hoy: {progreso.completados} / {progreso.total} locales</p>
+                                <div className="w-full bg-gray-200 rounded-full h-3"><div className="bg-verde-lgm h-3 rounded-full transition-all duration-500 shadow-lg" style={{width:`${progreso.porcentaje}%`}}></div></div>
+                            </div>
+
+                            {/* Corrección anterior */}
+                            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl mb-6">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-lg font-semibold text-yellow-800 flex items-center gap-2"><History className="w-5 h-5" />¿Corregir lectura anterior?</h3>
+                                    <button onClick={()=>setMostrarHistorial(!mostrarHistorial)} className="text-sm text-yellow-700 underline">{mostrarHistorial?'Ocultar':'Mostrar'}</button>
+                                </div>
+                                {mostrarHistorial && (
+                                    <div className="space-y-4 mt-3">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div><label className="block text-sm font-medium text-yellow-700 mb-2">Fecha a corregir *</label><input type="date" value={fechaCorreccion} onChange={e=>setFechaCorreccion(e.target.value)} max={obtenerHoy()} className="w-full px-4 py-2 border border-yellow-300 rounded-lg" /></div>
+                                            <div><label className="block text-sm font-medium text-yellow-700 mb-2">Local a corregir *</label><select value={localCorreccion} onChange={e=>setLocalCorreccion(e.target.value)} className="w-full px-4 py-2 border border-yellow-300 rounded-lg"><option value="">-- Seleccione --</option>{locales.map(l=><option key={l.numero} value={l.numero}>{l.numero} - {l.inquilino}</option>)}</select></div>
+                                        </div>
+                                        {fechaCorreccion && localCorreccion && (
+                                            <div className="mt-4">
+                                                <h4 className="font-semibold mb-2 text-yellow-800">Registros encontrados:</h4>
+                                                {buscarRegistrosCorreccion().length===0 ? <p className="text-sm text-yellow-700 bg-yellow-100 p-3 rounded-lg">No se encontraron registros</p> : 
+                                                    buscarRegistrosCorreccion().map(reg => (
+                                                        <div key={reg.id||reg.firebaseId} className="border border-yellow-300 rounded-lg p-3 mb-2 bg-white flex justify-between items-center">
+                                                            <div><p className="font-medium">Lectura: {reg.lectura} m³</p><p className="text-xs text-gray-600">{new Date(reg.fecha).toLocaleTimeString()}</p></div>
+                                                            <button onClick={()=>{ setEditandoRegistro(reg); setEditLectura(reg.lectura); setMostrarHistorial(false); }} className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm">Corregir</button>
+                                                        </div>
+                                                    ))
+                                                }
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                <p className="text-sm text-yellow-700 mt-3"><strong>Nota:</strong> Puede corregir lecturas de días anteriores.</p>
+                            </div>
+
+                            {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-2 mb-4"><AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" /><span className="text-sm">{error}</span></div>}
+                            {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-start gap-2 mb-4"><CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" /><span className="text-sm">{success}</span></div>}
+
+                            <div className="space-y-6">
+                                <SelectLocal locales={locales} registros={registros} selectedLocal={selectedLocal} onChange={setSelectedLocal} searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+                                {selectedLocal && (
+                                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl">
+                                        <p className="text-sm text-yellow-800"><strong>Local {selectedLocal} - {locales.find(l=>String(l.numero)===String(selectedLocal))?.inquilino}</strong><br/>Última lectura: {locales.find(l=>String(l.numero)===String(selectedLocal))?.ultimaLectura||0} m³</p>
+                                    </div>
+                                )}
+                                <div><label className="block text-sm font-medium text-gray-700 mb-2">Lectura del Medidor (m³) *</label><input type="number" step="0.01" value={lectura} onChange={e=>setLectura(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-verde-lgm" placeholder="Ej: 1234.56" /></div>
+                                <ImageUploader foto={foto} onFileChange={handleFileChange} loading={loading} />
+                                <button onClick={handleSubmit} disabled={loading} className="w-full flex items-center justify-center gap-2 bg-verde-lgm hover:bg-[#7a8560] disabled:bg-gray-400 text-white font-semibold py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg"><Camera className="w-5 h-5" />{loading ? 'Guardando...' : 'Registrar Lectura'}</button>
+                            </div>
+                        </div>
+
+                        {/* Mis registros */}
+                        <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800">Mis Registros</h2>
+                                <div className="flex items-center gap-2"><label className="text-sm text-gray-700">Ver fecha:</label><input type="date" value={fechaFiltroGuardia} onChange={e=>setFechaFiltroGuardia(e.target.value)} className="px-3 py-1 border border-gray-300 rounded-lg" /></div>
+                            </div>
+                            <div className="space-y-3">
+                                {registros.filter(r => r.fecha && obtenerFechaLocal(r.fecha)===fechaFiltroGuardia && r.username===user.username).sort(ordenarRegistros).map(r => (
+                                    <div key={r.firebaseId||r.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                        <div className="flex-1">
+                                            <p className="font-medium text-gray-800">{r.local} - {r.inquilino}</p>
+                                            <p className="text-sm text-gray-600">{r.lectura} m³ - {new Date(r.fecha).toLocaleTimeString()}</p>
+                                            <p className="text-xs text-gray-500 mt-1">{r.firebaseId ? <span className="text-green-600">✓ Sincronizado</span> : <span className="text-yellow-600">● Local</span>}{r.fechaCorreccion && <span className="text-blue-600 ml-2">● Corregido</span>}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={()=>{ setEditandoRegistro(r); setEditLectura(r.lectura); }} className="flex items-center gap-1 px-3 py-1 bg-azul-lgm hover:bg-[#1a1f45] text-white rounded-lg text-xs"><Edit className="w-3 h-3" />Editar</button>
+                                            <button onClick={()=>eliminarRegistro(r)} className="flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs"><Trash className="w-3 h-3" />Eliminar</button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {registros.filter(r => r.fecha && obtenerFechaLocal(r.fecha)===fechaFiltroGuardia && r.username===user.username).length===0 && <p className="text-center text-gray-500 py-4">No hay registros para esta fecha</p>}
+                            </div>
+                        </div>
+
+                        <EditModal editandoRegistro={editandoRegistro} editLectura={editLectura} setEditLectura={setEditLectura} onGuardar={guardarEdicion} onCancelar={()=>{ setEditandoRegistro(null); setEditLectura(''); }} loading={loading} />
+                    </div>
+                </div>
+            );
         };
 
         ReactDOM.render(<MedidorApp />, document.getElementById('root'));
     </script>
 </body>
 </html>
+
 
 
 
